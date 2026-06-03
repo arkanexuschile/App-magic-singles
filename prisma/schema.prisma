@@ -1,0 +1,194 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Note that some adapters may set a maximum length for the String type by default, please ensure your strings are long
+// enough when changing adapters.
+// See https://www.prisma.io/docs/orm/reference/prisma-schema-reference#string for more information
+datasource db {
+  provider = "sqlite"
+  url      = "file:dev.sqlite"
+}
+
+model Session {
+  id                  String    @id
+  shop                String
+  state               String
+  isOnline            Boolean   @default(false)
+  scope               String?
+  expires             DateTime?
+  accessToken         String
+  userId              BigInt?
+  firstName           String?
+  lastName            String?
+  email               String?
+  accountOwner        Boolean   @default(false)
+  locale              String?
+  collaborator        Boolean?  @default(false)
+  emailVerified       Boolean?  @default(false)
+  refreshToken        String?
+  refreshTokenExpires DateTime?
+}
+
+model SyncConfiguration {
+  id                                      String    @id @default(cuid())
+  shop                                    String    @unique
+  enabled                                 Boolean   @default(false)
+  dailyTime                               String    @default("03:00")
+  timezone                                String    @default("UTC")
+  syncImage                               Boolean   @default(false)
+  searchMode                              String    @default("sku")
+  searchMetafieldNamespace                String    @default("custom")
+  searchMetafieldKey                      String    @default("card_lookup")
+  useCustomScryfallIdField                Boolean   @default(false)
+  allowProductLevelCustomScryfallFallback Boolean   @default(false)
+  customScryfallIdNs                      String    @default("custom")
+  customScryfallIdKey                     String    @default("scryfall_id")
+  priceSource                             String    @default("scryfall")
+  justTcgApiKey                           String    @default("")
+  mtgjsonApiKey                           String    @default("")
+  displayCurrency                         String    @default("USD")
+  priceAdjustmentMode                     String    @default("percent")
+  priceAdjustmentPercent                  Float     @default(0)
+  priceAdjustmentFixed                    Float     @default(0)
+  minimumPrice                            Float     @default(0)
+  disableSuspiciousPriceAlert             Boolean   @default(false)
+  suspiciousPriceAlertThresholdPercent    Float     @default(50)
+  scryfallMetafieldNs                     String    @default("custom")
+  scryfallMetafieldKey                    String    @default("scryfall_meta")
+  metadataInitialized                     Boolean   @default(false)
+  imageSyncInitialized                    Boolean   @default(false)
+  nextRunAt                               DateTime?
+  lastRunAt                               DateTime?
+  lastRunStatus                           String?
+  lastError                               String?
+  lastScheduledVariantsScanned            Int?
+  lastScheduledCardsMatched               Int?
+  lastScheduledPricesUpdated              Int?
+  lastScheduledMetafieldsUpdated          Int?
+  lastScheduledImagesUpdated              Int?
+  lastScheduledSkippedForMissingPrice     Int?
+  lastScheduledPreviousPricesStored       Int?
+  lastScheduledFailures                   Int?
+  currentScheduledStatus                  String?
+  currentScheduledStartedAt               DateTime?
+  currentScheduledUpdatedAt               DateTime?
+  currentScheduledTotalVariants           Int?
+  currentScheduledProcessedVariants       Int?
+  currentScheduledCardsMatched            Int?
+  currentScheduledPricesUpdated           Int?
+  currentScheduledSkippedForMissingPrice  Int?
+  currentScheduledFailures                Int?
+  currentScheduledSuspiciousCount         Int?
+  currentScheduledTotalBlocks             Int?
+  currentScheduledProcessedBlocks         Int?
+  currentScheduledRemainingBlocks         Int?
+  scheduledCursorProductId                String?
+  scheduledCursorProductUpdatedAt         DateTime?
+  createdAt                               DateTime  @default(now())
+  updatedAt                               DateTime  @updatedAt
+}
+
+model ExchangeRateCache {
+  id        String   @id @default(cuid())
+  pair      String   @unique
+  rate      Float
+  source    String
+  fetchedAt DateTime
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model CardKingdomPriceCache {
+  scryfallId      String   @id
+  nonfoilPrice    String?
+  foilPrice       String?
+  snapshotAt      DateTime
+  sourceUpdatedAt DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([snapshotAt])
+}
+
+model BackgroundJobLock {
+  jobKey      String    @id
+  lockToken   String?
+  lockedUntil DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([lockedUntil])
+}
+
+model SyncRunHistory {
+  id                    String   @id @default(cuid())
+  shop                  String
+  runKind               String
+  status                String
+  startedAt             DateTime @default(now())
+  finishedAt            DateTime?
+  durationMs            Int?
+  message               String?
+  selectedProductsCount Int?
+  maxProducts           Int?
+  catalogVariantsTotal  Int?
+  variantsScanned       Int?
+  cardsMatched          Int?
+  pricesUpdated         Int?
+  metafieldsUpdated     Int?
+  imagesUpdated         Int?
+  skippedForMissingPrice Int?
+  previousPricesStored  Int?
+  failuresCount         Int?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  items                 SyncRunHistoryItem[]
+
+  @@index([shop, startedAt])
+}
+
+model SyncRunHistoryItem {
+  id           String   @id @default(cuid())
+  runId        String
+  shop         String
+  productId    String
+  productTitle String?
+  variantId    String
+  variantTitle String?
+  sku          String?
+  metaValue    String?
+  currentPrice String?
+  newPrice     String?
+  status       String
+  reason       String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  run          SyncRunHistory @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([runId, status])
+  @@index([shop, createdAt])
+}
+
+model ImageSyncQueue {
+  id          String   @id @default(cuid())
+  shop        String
+  productId   String
+  scryfallId  String?
+  imageUrl    String
+  fingerprint String
+  status      String   @default("queued")
+  attempts    Int      @default(0)
+  lastError   String?
+  nextAttemptAt DateTime?
+  lockedAt    DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([shop, productId])
+  @@index([shop, status, nextAttemptAt, updatedAt])
+}
