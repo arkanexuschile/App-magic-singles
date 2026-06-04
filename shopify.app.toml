@@ -1,9 +1,9 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
-client_id = "b34abec9093edca1d1c699a1811c9520"
+client_id = "fe69b29a693b4e0778c3fe13a57eddcf"
 name = "Magic Pricer"
 handle = "magic-pricer"
-application_url = "https://example.com"
+application_url = "https://localhost"
 embedded = true
 
 [build]
