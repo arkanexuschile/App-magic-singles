@@ -28,6 +28,8 @@ export default function App() {
         <Link to={withLang("/app")} rel="home">
           {t.navHome}
         </Link>
+        <Link to={withLang("/app/singles")}>{t.navSingles}</Link>
+        <Link to={withLang("/app/sets")}>{t.navSets}</Link>
         <Link to={withLang("/app/price-sync")}>{t.navPriceSync}</Link>
       </NavMenu>
       <Outlet />

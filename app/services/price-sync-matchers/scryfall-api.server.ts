@@ -152,7 +152,11 @@ function parseSkuToken(rawSku: string): {
   foilMode: "foil" | "nonfoil" | null;
   language: string;
 } | null {
-  const compact = rawSku.replace(/[\s\-_]/g, "").toLowerCase();
+  // Imported products can carry a "-2", "-3", ... suffix when their SKU collided
+  // with another card (see set-importer dedupe). Strip it before compacting so
+  // the collector number is parsed correctly.
+  const withoutDedupeSuffix = rawSku.replace(/-\d+$/i, "");
+  const compact = withoutDedupeSuffix.replace(/[\s\-_]/g, "").toLowerCase();
   if (compact.length < 4) {
     return null;
   }

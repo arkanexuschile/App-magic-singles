@@ -193,3 +193,38 @@ model ImageSyncQueue {
   @@unique([shop, productId])
   @@index([shop, status, nextAttemptAt, updatedAt])
 }
+
+model SetsCache {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  data      String
+  fetchedAt DateTime
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([key, expiresAt])
+}
+
+model SetImportJob {
+  id             String    @id @default(cuid())
+  shop           String
+  setCode        String
+  status         String    @default("queued") // queued | running | completed | failed
+  createAsActive Boolean   @default(false)
+  total          Int       @default(0)
+  processed      Int       @default(0)
+  created        Int       @default(0)
+  failed         Int       @default(0)
+  skipped        Int       @default(0)
+  errorCount     Int       @default(0)
+  errors         String? // JSON array of {card, error} (primero N errores)
+  message        String?
+  startedAt      DateTime?
+  finishedAt     DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([shop, status])
+  @@index([shop, setCode, createdAt])
+}

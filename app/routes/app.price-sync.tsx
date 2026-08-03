@@ -45,6 +45,7 @@ import {
   getManualSyncStatusForShop,
   recoverStaleRunningStateForShop,
   getTestSyncStatusForShop,
+  triggerSchedulerTickInBackground,
 } from "../services/sync-scheduler.server";
 import {
   clearSyncRunHistoryForShop,
@@ -526,7 +527,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         formData.get("disableSuspiciousPriceAlert") === "on";
       const searchModeValue = String(formData.get("searchMode") ?? "sku");
       const priceSourceValue = String(formData.get("priceSource") ?? "scryfall");
-      const hasCardKingdomData = await hasCardKingdomDataInDb();
       const useCustomScryfallIdField = formData.get("useCustomScryfallIdField") === "on";
       const allowProductLevelCustomScryfallFallback =
         formData.get("allowProductLevelCustomScryfallFallback") === "on";
@@ -574,15 +574,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       }
       if (!isValidPriceSource(priceSourceValue)) {
         return { ok: false, message: "Invalid price source" } satisfies ActionData;
-      }
-      if (priceSourceValue === "cardkingdom" && !hasCardKingdomData) {
-        return {
-          ok: false,
-          message:
-            lang === "es"
-              ? "Card Kingdom aún no está disponible. La opción aparecerá cuando exista cache en base de datos."
-              : "Card Kingdom is not available yet. The option will appear once cache data exists in the database.",
-        } satisfies ActionData;
       }
       if (!isValidDisplayCurrency(displayCurrencyValue)) {
         return { ok: false, message: "Invalid display currency" } satisfies ActionData;
@@ -707,6 +698,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           nextRunAt: nextRunAtForSave,
         },
       });
+
+      if (priceSourceValue === "cardkingdom") {
+        triggerSchedulerTickInBackground({ trigger: "manual" });
+      }
 
       return {
         ok: true,
@@ -936,11 +931,7 @@ export default function PriceSyncPage() {
     useState(config.allowProductLevelCustomScryfallFallback);
   const [customScryfallIdNs, setCustomScryfallIdNs] = useState(config.customScryfallIdNs);
   const [customScryfallIdKey, setCustomScryfallIdKey] = useState(config.customScryfallIdKey);
-  const [priceSource, setPriceSource] = useState(
-    config.priceSource === "cardkingdom" && !hasCardKingdomData
-      ? "scryfall"
-      : config.priceSource,
-  );
+  const [priceSource, setPriceSource] = useState(config.priceSource);
   const [justTcgApiKey, setJustTcgApiKey] = useState(config.justTcgApiKey ?? "");
   const [mtgjsonApiKey, setMtgjsonApiKey] = useState(config.mtgjsonApiKey ?? "");
   const [displayCurrency, setDisplayCurrency] = useState<"USD" | "CLP">(
@@ -1146,9 +1137,7 @@ export default function PriceSyncPage() {
     { label: t.priceScryfall, value: "scryfall" },
     { label: t.priceJusttcg, value: "justtcg" },
     { label: t.priceMtgjson, value: "mtgjson" },
-    ...(hasCardKingdomData
-      ? [{ label: t.priceCardkingdom, value: "cardkingdom" }]
-      : []),
+    { label: t.priceCardkingdom + (hasCardKingdomData ? "" : " (sin cache)"), value: "cardkingdom" },
   ];
   const priceSourceSummary =
     priceSource === "justtcg"

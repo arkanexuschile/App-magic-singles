@@ -1,10 +1,10 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
 client_id = "fe69b29a693b4e0778c3fe13a57eddcf"
-name = "Magic Pricer"
-handle = "magic-pricer"
 application_url = "https://localhost"
 embedded = true
+name = "Magic Pricer Singles"
+handle = "magic-pricer"
 
 [build]
 automatically_update_urls_on_dev = true
@@ -32,9 +32,8 @@ api_version = "2026-04"
   uri = "/webhooks/shop/redact"
   compliance_topics = [ "shop/redact" ]
 
-[access_scopes]
-# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "read_products,write_products"
-
 [auth]
-redirect_urls = [ "https://example.com/api/auth" ]
+redirect_urls = [ "https://localhost/auth/callback" ]
+
+[access_scopes]
+scopes = "read_products,write_products"

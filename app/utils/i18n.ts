@@ -34,7 +34,9 @@ export function detectLanguage(request: Request): AppLanguage {
 
 export const i18n = {
   en: {
-    navHome: "Magic Pricer",
+    navHome: "Magic Pricer Singles",
+    navSingles: "Singles Catalog",
+    navSets: "Import Set",
     navPriceSync: "Price Sync",
     priceSyncTitle: "Price Sync",
     settingsTitle: "Daily synchronization settings",
@@ -276,7 +278,9 @@ export const i18n = {
     no: "No",
   },
   es: {
-    navHome: "Magic Pricer",
+    navHome: "Magic Pricer Singles",
+    navSingles: "Catálogo Singles",
+    navSets: "Importar Set",
     navPriceSync: "Sincronización",
     priceSyncTitle: "Sincronización de Precios",
     settingsTitle: "Configuración diaria de sincronización",

@@ -1,17 +1,27 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
-import { Link, useLoaderData, useRevalidator } from "@remix-run/react";
+import { Link, useLoaderData, useRevalidator, useSubmit } from "@remix-run/react";
 import { TitleBar } from "@shopify/app-bridge-react";
 import {
   Badge,
   BlockStack,
   Card,
+  Icon,
   InlineGrid,
+  InlineStack,
   Layout,
   List,
   Page,
   Text,
+  TextField,
+  Button,
 } from "@shopify/polaris";
-import { useEffect } from "react";
+import { useCallback, useRef, useState, useEffect } from "react";
+
+// local SVG icons
+function SearchSvg() { return <svg viewBox="0 0 20 20" fill="currentColor" width="20" height="20"><path d="M12.5 11h-.79l-.28-.27A6.471 6.471 0 0013 6.5 6.5 6.5 0 106.5 13a6.471 6.471 0 004.23-1.57l.27.28v.79l5 4.99L17.49 16l-4.99-5zm-6 0C4.01 11 2 8.99 2 6.5S4.01 2 6.5 2 11 4.01 11 6.5 8.99 11 6.5 11z"/></svg>; }
+function ProductSvg() { return <svg viewBox="0 0 20 20" fill="currentColor" width="20" height="20"><path d="M10 2L2 6v8l8 4 8-4V6l-8-4zm0 2.32L14.13 7 10 9.68 5.87 7 10 4.32zM4 7.67l5.5 2.75v5.25L4 12.92V7.67zm6.5 8V10.42l5.5-2.75v5.25L10.5 15.67z"/></svg>; }
+function InventorySvg() { return <svg viewBox="0 0 20 20" fill="currentColor" width="20" height="20"><path d="M17 3H3a1 1 0 00-1 1v2a1 1 0 001 1h14a1 1 0 001-1V4a1 1 0 00-1-1zm-1 5H4v7a1 1 0 001 1h10a1 1 0 001-1V8z"/></svg>; }
+function CalendarSvg() { return <svg viewBox="0 0 20 20" fill="currentColor" width="20" height="20"><path d="M15 3h-1V2a1 1 0 10-2 0v1H8V2a1 1 0 10-2 0v1H5a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2V5a2 2 0 00-2-2zm0 12H5V7h10v8z"/></svg>; }
 import {
   computeNextRunAt,
   getOrCreateSyncConfiguration,
@@ -337,10 +347,37 @@ export default function HomePage() {
   const { lang, summary, recentProducts, recentSyncRuns, dashboardError, syncInfo } =
     useLoaderData<typeof loader>();
   const revalidator = useRevalidator();
+  const submit = useSubmit();
   const isEs = lang === "es";
   const withLang = (path: string) => `${path}?lang=${lang}`;
   const defaultScheduleLabel = formatScheduleLabel(syncInfo.defaultTimeUtc, isEs);
   const isCronRunning = syncInfo.currentScheduledStatus === "running";
+  const [searchValue, setSearchValue] = useState("");
+  const searchDebounce = useRef<ReturnType<typeof setTimeout>>();
+
+  const handleSearchSubmit = useCallback(() => {
+    if (!searchValue.trim()) return;
+    const params = new URLSearchParams();
+    params.set("search", searchValue.trim());
+    params.set("lang", lang);
+    submit(params, { action: "/app/singles", method: "get" });
+  }, [searchValue, lang, submit]);
+
+  const handleSearchChange = useCallback(
+    (value: string) => {
+      setSearchValue(value);
+      if (searchDebounce.current) clearTimeout(searchDebounce.current);
+      searchDebounce.current = setTimeout(() => {
+        if (value.trim()) {
+          const params = new URLSearchParams();
+          params.set("search", value.trim());
+          params.set("lang", lang);
+          submit(params, { action: "/app/singles", method: "get" });
+        }
+      }, 600);
+    },
+    [lang, submit],
+  );
 
   useEffect(() => {
     if (!isCronRunning) {
@@ -354,61 +391,84 @@ export default function HomePage() {
 
   return (
     <Page>
-      <TitleBar title="Magic Pricer" />
+      <TitleBar title="Magic Pricer Singles" />
       <BlockStack gap="500">
         <Layout>
           <Layout.Section>
-            <Card>
-              <BlockStack gap="300">
-                <Text as="h2" variant="headingMd">
-                  {isEs
-                    ? "Dashboard de Catálogo y Sincronización"
-                    : "Catalog & Sync Dashboard"}
-                </Text>
-                <Text as="p" variant="bodyMd">
-                  {isEs
-                    ? "Vista rápida del estado actual de productos, últimas actualizaciones y configuración de sincronización."
-                    : "Quick view of current product status, latest updates, and sync configuration."}
-                </Text>
-              </BlockStack>
+            <Card padding="400">
+              <InlineStack gap="300" align="start" blockAlign="center">
+                <div style={{ flex: 1 }}>
+                  <TextField
+                    label={isEs ? "Buscar productos" : "Search products"}
+                    labelHidden
+                    placeholder={
+                      isEs
+                        ? "Buscar productos por título, SKU..."
+                        : "Search products by title, SKU..."
+                    }
+                    prefix={<Icon source={SearchSvg} />}
+                    value={searchValue}
+                    onChange={handleSearchChange}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleSearchSubmit();
+                    }}
+                    autoComplete="off"
+                  />
+                </div>
+                <Button onClick={handleSearchSubmit}>
+                  {isEs ? "Buscar" : "Search"}
+                </Button>
+                <Button url={withLang("/app/singles")} variant="plain">
+                  {isEs ? "Catálogo completo" : "Full catalog"}
+                </Button>
+              </InlineStack>
             </Card>
           </Layout.Section>
         </Layout>
 
         <Layout>
           <Layout.Section>
-            <InlineGrid columns={3} gap="300">
-              <Card>
-                <BlockStack gap="100">
-                  <Text as="p" variant="bodySm" tone="subdued">
-                    {isEs ? "Productos actuales" : "Current products"}
-                  </Text>
-                  <Text as="h3" variant="headingLg">
-                    {summary.productCount}
-                    {summary.productCountCapped ? "+" : ""}
-                  </Text>
-                </BlockStack>
+            <InlineGrid columns={{ xs: 1, sm: 3 }} gap="300">
+              <Card padding="400">
+                <InlineStack gap="200" blockAlign="center">
+                  <Icon source={ProductSvg} tone="base" />
+                  <BlockStack gap="050">
+                    <Text as="p" variant="bodySm" tone="subdued">
+                      {isEs ? "Productos" : "Products"}
+                    </Text>
+                    <Text as="h3" variant="headingXl">
+                      {summary.productCount.toLocaleString()}
+                      {summary.productCountCapped ? "+" : ""}
+                    </Text>
+                  </BlockStack>
+                </InlineStack>
               </Card>
-              <Card>
-                <BlockStack gap="100">
-                  <Text as="p" variant="bodySm" tone="subdued">
-                    {isEs ? "Variantes actuales" : "Current variants"}
-                  </Text>
-                  <Text as="h3" variant="headingLg">
-                    {summary.variantCount}
-                    {summary.variantCountCapped ? "+" : ""}
-                  </Text>
-                </BlockStack>
+              <Card padding="400">
+                <InlineStack gap="200" blockAlign="center">
+                  <Icon source={InventorySvg} tone="base" />
+                  <BlockStack gap="050">
+                    <Text as="p" variant="bodySm" tone="subdued">
+                      {isEs ? "Variantes" : "Variants"}
+                    </Text>
+                    <Text as="h3" variant="headingXl">
+                      {summary.variantCount.toLocaleString()}
+                      {summary.variantCountCapped ? "+" : ""}
+                    </Text>
+                  </BlockStack>
+                </InlineStack>
               </Card>
-              <Card>
-                <BlockStack gap="100">
-                  <Text as="p" variant="bodySm" tone="subdued">
-                    {isEs ? "Horario por defecto (UTC)" : "Default schedule (UTC)"}
-                  </Text>
-                  <Text as="h3" variant="headingLg">
-                    {defaultScheduleLabel}
-                  </Text>
-                </BlockStack>
+              <Card padding="400">
+                <InlineStack gap="200" blockAlign="center">
+                  <Icon source={CalendarSvg} tone="base" />
+                  <BlockStack gap="050">
+                    <Text as="p" variant="bodySm" tone="subdued">
+                      {isEs ? "Sincronización" : "Schedule"}
+                    </Text>
+                    <Text as="h3" variant="headingXl">
+                      {defaultScheduleLabel}
+                    </Text>
+                  </BlockStack>
+                </InlineStack>
               </Card>
             </InlineGrid>
           </Layout.Section>

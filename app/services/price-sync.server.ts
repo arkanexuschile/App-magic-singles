@@ -1934,10 +1934,10 @@ function isScannableForSelectedSearchMethod(variant: VariantNode, prefs: SyncPre
   }
 
   if (prefs.searchMode === "sku") {
-    return resolveSkuForLookup(variant).length > 0;
+    return (resolveSkuForLookup(variant) ?? "").length > 0;
   }
 
-  return variant.product.title.trim().length > 0;
+  return (variant.product.title ?? "").trim().length > 0;
 }
 
 async function loadAllVariants(

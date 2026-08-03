@@ -1,0 +1,219 @@
+import type { SetImportJob } from "@prisma/client";
+import db from "../db.server";
+import {
+  getScryfallSet,
+  getSetCards,
+  importCardsToShopify,
+} from "./set-importer.server";
+import { ensureProductMetafieldDefinitions } from "./metafield-definitions.server";
+import type { SetImportProgress } from "./set-importer.server";
+
+const ERROR_CAP = 50;
+const PROGRESS_INTERVAL_MS = 2000;
+
+export async function recoverStaleImportJobs(): Promise<number> {
+  const result = await db.setImportJob.updateMany({
+    where: { status: { in: ["queued", "running"] } },
+    data: {
+      status: "failed",
+      message: "El proceso de dev se reinició; la importación quedó interrumpida. Vuelve a importar el set.",
+      finishedAt: new Date(),
+    },
+  });
+  if (result.count > 0) {
+    console.log(`[SetImportQueue] recovered ${result.count} stale import job(s)`);
+  }
+  return result.count;
+}
+
+export type SetImportJobView = {
+  id: string;
+  setCode: string;
+  status: string;
+  createAsActive: boolean;
+  total: number;
+  processed: number;
+  created: number;
+  failed: number;
+  skipped: number;
+  errorCount: number;
+  errors: Array<{ card: string; error: string }>;
+  message: string | null;
+  startedAt: string | null;
+  finishedAt: string | null;
+  createdAt: string;
+};
+
+function serializeJob(row: SetImportJob): SetImportJobView {
+  let errors: Array<{ card: string; error: string }> = [];
+  if (row.errors) {
+    try {
+      errors = JSON.parse(row.errors) as Array<{ card: string; error: string }>;
+    } catch {
+      errors = [];
+    }
+  }
+  return {
+    id: row.id,
+    setCode: row.setCode,
+    status: row.status,
+    createAsActive: row.createAsActive,
+    total: row.total,
+    processed: row.processed,
+    created: row.created,
+    failed: row.failed,
+    skipped: row.skipped,
+    errorCount: row.errorCount,
+    errors,
+    message: row.message,
+    startedAt: row.startedAt?.toISOString() ?? null,
+    finishedAt: row.finishedAt?.toISOString() ?? null,
+    createdAt: row.createdAt.toISOString(),
+  };
+}
+
+export async function enqueueSetImport(params: {
+  shop: string;
+  accessToken: string;
+  adminGraphql: (query: string, options?: Record<string, unknown>) => Promise<Response>;
+  setCode: string;
+  createAsActive: boolean;
+}): Promise<{ job: SetImportJobView; alreadyRunning: boolean }> {
+  const setCode = params.setCode.toLowerCase();
+
+  const active = await db.setImportJob.findFirst({
+    where: { shop: params.shop, setCode, status: { in: ["queued", "running"] } },
+    orderBy: { createdAt: "desc" },
+  });
+  if (active) {
+    return { job: serializeJob(active), alreadyRunning: true };
+  }
+
+  const row = await db.setImportJob.create({
+    data: {
+      shop: params.shop,
+      setCode,
+      status: "queued",
+      createAsActive: params.createAsActive,
+    },
+  });
+
+  void runJobInBackground({ jobId: row.id, ...params });
+
+  return { job: serializeJob(row), alreadyRunning: false };
+}
+
+export async function listSetImportJobs(shop: string): Promise<SetImportJobView[]> {
+  const rows = await db.setImportJob.findMany({
+    where: { shop },
+    orderBy: { createdAt: "desc" },
+    take: 20,
+  });
+  return rows.map(serializeJob);
+}
+
+export async function getSetImportJob(id: string, shop: string): Promise<SetImportJobView | null> {
+  const row = await db.setImportJob.findFirst({ where: { id, shop } });
+  return row ? serializeJob(row) : null;
+}
+
+async function runJobInBackground(params: {
+  jobId: string;
+  shop: string;
+  accessToken: string;
+  adminGraphql: (query: string, options?: Record<string, unknown>) => Promise<Response>;
+  setCode: string;
+  createAsActive: boolean;
+}): Promise<void> {
+  const { jobId, shop, accessToken, adminGraphql, setCode, createAsActive } = params;
+
+  await db.setImportJob.update({
+    where: { id: jobId },
+    data: { status: "running", startedAt: new Date() },
+  });
+
+  const setInfo = await getScryfallSet(setCode);
+  if (!setInfo) {
+    await failJob(jobId, `Set "${setCode}" not found`);
+    return;
+  }
+
+  let cards;
+  try {
+    cards = await getSetCards(setCode);
+  } catch (error) {
+    await failJob(jobId, error instanceof Error ? error.message : String(error));
+    return;
+  }
+
+  let lastProgressWrite = 0;
+  try {
+    try {
+      await ensureProductMetafieldDefinitions(adminGraphql);
+    } catch (error) {
+      await failJob(
+        jobId,
+        `No se pudieron crear las definiciones de metafields: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+      return;
+    }
+
+    const result = await importCardsToShopify({
+      cards,
+      setInfo,
+      adminGraphql,
+      shop,
+      accessToken,
+      createAsActive,
+      onProgress: (progress: SetImportProgress) => {
+        const now = Date.now();
+        const isFinal = progress.processed >= progress.total;
+        if (!isFinal && now - lastProgressWrite < PROGRESS_INTERVAL_MS) {
+          return;
+        }
+        lastProgressWrite = now;
+        return db.setImportJob
+          .update({
+            where: { id: jobId },
+            data: {
+              total: progress.total,
+              processed: progress.processed,
+              created: progress.created,
+              failed: progress.failed,
+              skipped: progress.skipped,
+              errorCount: progress.failed,
+            },
+          })
+          .catch(() => undefined);
+      },
+    });
+
+    await db.setImportJob.update({
+      where: { id: jobId },
+      data: {
+        status: "completed",
+        total: result.created + result.failed + result.skipped,
+        processed: result.created + result.failed + result.skipped,
+        created: result.created,
+        failed: result.failed,
+        skipped: result.skipped,
+        errorCount: result.errors.length,
+        errors: JSON.stringify(result.errors.slice(0, ERROR_CAP)),
+        finishedAt: new Date(),
+      },
+    });
+  } catch (error) {
+    await failJob(jobId, error instanceof Error ? error.message : String(error));
+  }
+}
+
+async function failJob(jobId: string, message: string) {
+  await db.setImportJob.update({
+    where: { id: jobId },
+    data: { status: "failed", message, finishedAt: new Date() },
+  });
+}
+
+void recoverStaleImportJobs();

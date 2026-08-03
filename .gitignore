@@ -18,6 +18,13 @@ package-lock.json
 yarn.lock
 pnpm-lock.yaml
 
+# Dev DB and temp scripts
+/dev.sqlite
+/dev.sqlite-journal
+check_ck.cjs
+dev.ps1
+run-shopify.cmd
+
 /extensions/*/dist
 
 # Ignore shopify files created during app dev
