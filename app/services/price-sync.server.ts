@@ -781,7 +781,7 @@ function applyConfiguredPriceAdjustments(
   return adjusted;
 }
 
-async function fetchUsdToClpRate(): Promise<number> {
+export async function fetchUsdToClpRate(): Promise<number> {
   const now = Date.now();
   const cached = await db.exchangeRateCache.findUnique({
     where: { pair: USD_CLP_PAIR },

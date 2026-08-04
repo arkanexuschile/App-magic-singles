@@ -126,7 +126,11 @@ async function scryfallFetch(path: string): Promise<Response> {
 export async function listScryfallSets(): Promise<ScryfallSetInfo[]> {
   const cached = await db.setsCache.findUnique({ where: { key: "all_sets" } });
   if (cached && cached.expiresAt > new Date()) {
-    return JSON.parse(cached.data) as ScryfallSetInfo[];
+    const allSets = JSON.parse(cached.data) as ScryfallSetInfo[];
+    const filtered = allSets.filter(
+      (s) => s.setType !== "token" && s.setType !== "box" && s.setType !== "memorabilia",
+    );
+    return filtered.sort((a, b) => b.releasedAt.localeCompare(a.releasedAt));
   }
 
   const response = await scryfallFetch("/sets");
@@ -134,7 +138,7 @@ export async function listScryfallSets(): Promise<ScryfallSetInfo[]> {
     data: ScryfallSetJson[];
   };
   const sets = json.data
-    .filter((s) => !s.digital)
+    .filter((s) => !s.digital && s.set_type !== "token" && s.set_type !== "box" && s.set_type !== "memorabilia")
     .map((s) => ({
       id: s.id,
       code: s.code,
@@ -171,7 +175,7 @@ export async function getScryfallSet(code: string): Promise<ScryfallSetInfo | nu
   try {
     const response = await scryfallFetch(`/sets/${code.toLowerCase()}`);
     const json = (await response.json()) as ScryfallSetJson;
-    if (json.digital) return null;
+    if (json.digital || json.set_type === "token" || json.set_type === "box" || json.set_type === "memorabilia") return null;
     return {
       id: json.id,
       code: json.code,

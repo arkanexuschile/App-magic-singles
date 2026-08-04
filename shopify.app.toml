@@ -1,9 +1,9 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
 client_id = "fe69b29a693b4e0778c3fe13a57eddcf"
-application_url = "https://localhost"
-embedded = true
 name = "Magic Pricer Singles"
+application_url = "https://example.com"
+embedded = true
 handle = "magic-pricer"
 
 [build]
@@ -11,14 +11,6 @@ automatically_update_urls_on_dev = true
 
 [webhooks]
 api_version = "2026-04"
-
-  [[webhooks.subscriptions]]
-  topics = [ "app/uninstalled" ]
-  uri = "/webhooks/app/uninstalled"
-
-  [[webhooks.subscriptions]]
-  topics = [ "app/scopes_update" ]
-  uri = "/webhooks/app/scopes_update"
 
   [[webhooks.subscriptions]]
   uri = "/webhooks/customers/data_request"
@@ -32,8 +24,19 @@ api_version = "2026-04"
   uri = "/webhooks/shop/redact"
   compliance_topics = [ "shop/redact" ]
 
-[auth]
-redirect_urls = [ "https://localhost/auth/callback" ]
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/app/scopes_update"
+  topics = [ "app/scopes_update" ]
+
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/app/uninstalled"
+  topics = [ "app/uninstalled" ]
 
 [access_scopes]
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
 scopes = "read_products,write_products"
+optional_scopes = [ ]
+use_legacy_install_flow = false
+
+[auth]
+redirect_urls = [ ]

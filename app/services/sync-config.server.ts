@@ -79,7 +79,7 @@ const DEFAULT_CONFIG: Omit<SyncConfigurationRecord, "shop"> = {
   priceSource: "scryfall",
   justTcgApiKey: "",
   mtgjsonApiKey: "",
-  displayCurrency: "USD",
+  displayCurrency: "CLP",
   priceAdjustmentMode: "percent",
   priceAdjustmentPercent: 0,
   priceAdjustmentFixed: 0,

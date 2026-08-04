@@ -336,7 +336,7 @@ function ProductCard({
             )}
             <InlineStack gap="100" align="space-between" blockAlign="center">
               <Text as="p" variant="headingMd" fontWeight="bold">
-                ${parseFloat(firstVariant.price).toFixed(2)}
+                {parseFloat(firstVariant.price).toLocaleString("es-CL", { style: "currency", currency: "CLP", minimumFractionDigits: 0, maximumFractionDigits: 2 })}
               </Text>
               <Text as="p" variant="bodySm" tone="subdued">
                 {isEs ? "Stock:" : "Stock:"} {product.totalInventory}

@@ -40,6 +40,7 @@ import {
   getSetImportJob,
 } from "../services/set-import-queue.server";
 import type { SetImportJobView } from "../services/set-import-queue.server";
+import { fetchUsdToClpRate } from "../services/price-sync.server";
 
 function SearchSvg() {
   return (
@@ -85,6 +86,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const jobs = await listSetImportJobs(session.shop);
   const currentJob = jobId ? await getSetImportJob(jobId, session.shop) : null;
 
+  let usdToClpRate = 950;
+  try {
+    usdToClpRate = await fetchUsdToClpRate();
+  } catch { /* fallback to 950 */ }
+
   return json({
     lang,
     recentSets,
@@ -93,6 +99,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     searchQuery,
     jobs,
     currentJob,
+    usdToClpRate,
   });
 };
 
@@ -123,9 +130,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   return json({ job, alreadyRunning, setCode });
 };
 
-function formatPrice(price: number | null): string {
+function formatPrice(price: number | null, usdToClpRate: number): string {
   if (price === null) return "-";
-  return `$${price.toFixed(2)}`;
+  const clp = Math.round(price * usdToClpRate);
+  return clp.toLocaleString("es-CL", { style: "currency", currency: "CLP", minimumFractionDigits: 0 });
 }
 
 function rarityBadge(rarity: string) {
@@ -150,7 +158,7 @@ function jobProgress(job: SetImportJobView): number {
 }
 
 export default function SetsPage() {
-  const { lang, recentSets, setCards, selectedSet, searchQuery, jobs, currentJob } =
+  const { lang, recentSets, setCards, selectedSet, searchQuery, jobs, currentJob, usdToClpRate } =
     useLoaderData<typeof loader>();
   const actionData = useActionData<{
     job?: SetImportJobView;
@@ -371,7 +379,7 @@ export default function SetsPage() {
                           {isEs ? "Rareza" : "Rarity"}
                         </th>
                         <th style={{ textAlign: "right", padding: "6px", borderBottom: "1px solid #dfe3e8" }}>
-                          USD
+                          CLP
                         </th>
                         <th style={{ textAlign: "right", padding: "6px", borderBottom: "1px solid #dfe3e8" }}>
                           Foil
@@ -410,10 +418,10 @@ export default function SetsPage() {
                             {rarityBadge(card.rarity)}
                           </td>
                           <td style={{ padding: "6px", borderBottom: "1px solid #f1f3f5", textAlign: "right" }}>
-                            {formatPrice(card.usdPrice)}
+                            {formatPrice(card.usdPrice, usdToClpRate)}
                           </td>
                           <td style={{ padding: "6px", borderBottom: "1px solid #f1f3f5", textAlign: "right" }}>
-                            {card.hasFoil ? formatPrice(card.usdFoilPrice) : "-"}
+                            {card.hasFoil ? formatPrice(card.usdFoilPrice, usdToClpRate) : "-"}
                           </td>
                         </tr>
                       ))}

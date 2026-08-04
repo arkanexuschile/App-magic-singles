@@ -6,6 +6,7 @@ import {
   importCardsToShopify,
 } from "./set-importer.server";
 import { ensureProductMetafieldDefinitions } from "./metafield-definitions.server";
+import { createShopAdminClient } from "./shopify/admin-client.server";
 import type { SetImportProgress } from "./set-importer.server";
 
 const ERROR_CAP = 50;
@@ -149,7 +150,7 @@ async function runJobInBackground(params: {
   let lastProgressWrite = 0;
   try {
     try {
-      await ensureProductMetafieldDefinitions(adminGraphql);
+      await ensureProductMetafieldDefinitions(createShopAdminClient(shop, accessToken).graphql);
     } catch (error) {
       await failJob(
         jobId,
