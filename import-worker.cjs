@@ -112,15 +112,7 @@ async function main() {
     }
 
     function buildTitle(card, foil) {
-      let t = card.name;
-      const parts = [];
-      if (card.power && card.toughness) parts.push(`${card.power}/${card.toughness}`);
-      if (card.manaCost) parts.push(card.manaCost);
-      if (parts.length) t += ` (${parts.join(' - ')})`;
-      t += ` - ${rarityToSpanish(card.rarity)}`;
-      if (foil) t += ' FOIL';
-      t += ` (${card.setCode.toUpperCase()}) ${card.collectorNumber}`;
-      return t;
+      return `${card.name} Regular${foil ? ' Foil' : ''} (ingles) ${card.collectorNumber}`;
     }
 
     // --- Import each page ---
@@ -149,7 +141,7 @@ async function main() {
           const input = {
             title,
             descriptionHtml,
-            vendor: card.set_name,
+            vendor: '',
             productType: 'Magic: The Gathering Single',
             status: createAsActive ? 'ACTIVE' : 'DRAFT',
             tags: [card.setCode.toUpperCase(), card.rarity, finishTag, `set:${card.setCode}`].join(','),
@@ -222,6 +214,18 @@ async function main() {
               headers: { 'Content-Type': 'application/json', 'X-Shopify-Access-Token': accessToken },
               body: JSON.stringify({ location_id: 1, inventory_item_id: invNumericId, available: 1 }),
             }).catch(() => {});
+          }
+
+          // Add product image
+          if (card.imageUrl) {
+            const imgResult = await graphql(
+              `mutation AddMedia($productId: ID!, $media: [CreateMediaInput!]!) {
+                productCreateMedia(productId: $productId, media: $media) {
+                  mediaUserErrors { field message }
+                }
+              }`,
+              { productId, media: [{ mediaContentType: 'IMAGE', originalSource: card.imageUrl, alt: card.name }] }
+            ).catch(() => null);
           }
 
           created++;
