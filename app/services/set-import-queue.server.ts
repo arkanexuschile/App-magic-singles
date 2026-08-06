@@ -157,10 +157,11 @@ async function runJobInBackground(params: {
 
     const config = await getOrCreateSyncConfiguration(shop);
 
-    let cardKingdomPrices: Map<string, { nonfoil: string | null; foil: string | null }> | undefined;
-    try {
-      cardKingdomPrices = await readCardKingdomPricesFromDb();
-    } catch { /* will fall back to Scryfall prices */ }
+    // let cardKingdomPrices: Map<string, { nonfoil: string | null; foil: string | null }> | undefined;
+    // try {
+    //   cardKingdomPrices = await readCardKingdomPricesFromDb();
+    // } catch { /* will fall back to Scryfall prices */ }
+    const cardKingdomPrices = undefined;
 
     const safeGraphql = createShopAdminClient(shop, accessToken).graphql;
 
