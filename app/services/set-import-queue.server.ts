@@ -8,6 +8,7 @@ import {
 import { ensureProductMetafieldDefinitions } from "./metafield-definitions.server";
 import { createShopAdminClient } from "./shopify/admin-client.server";
 import { getOrCreateSyncConfiguration } from "./sync-config.server";
+import { readCardKingdomPricesFromDb } from "./price-sync.server";
 import type { SetImportProgress } from "./set-importer.server";
 
 const ERROR_CAP = 50;
@@ -156,6 +157,11 @@ async function runJobInBackground(params: {
 
     const config = await getOrCreateSyncConfiguration(shop);
 
+    let cardKingdomPrices: Map<string, { nonfoil: string | null; foil: string | null }> | undefined;
+    try {
+      cardKingdomPrices = await readCardKingdomPricesFromDb();
+    } catch { /* will fall back to Scryfall prices */ }
+
     let pageUrl: string | undefined;
     let totalCards = 0;
     let cumulativeCreated = 0;
@@ -177,6 +183,7 @@ async function runJobInBackground(params: {
         accessToken,
         createAsActive,
         genericDescription: config.genericDescription || undefined,
+        cardKingdomPrices,
         onProgress: (progress: SetImportProgress) => {
           const now = Date.now();
           const isFinal = cumulative.processed + progress.processed >= totalCards;

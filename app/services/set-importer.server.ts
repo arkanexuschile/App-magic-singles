@@ -1,4 +1,5 @@
 import db from "../db.server";
+import type { CardKingdomPriceEntry } from "./price-sync.server";
 
 const SCRYFALL_API = "https://api.scryfall.com";
 const SCRYFALL_MIN_INTERVAL = 100;
@@ -564,8 +565,9 @@ export async function importCardsToShopify(params: {
   createAsActive: boolean;
   onProgress?: (progress: SetImportProgress) => void;
   genericDescription?: string;
+  cardKingdomPrices?: Map<string, CardKingdomPriceEntry>;
 }): Promise<ImportResult> {
-  const { cards, setInfo, adminGraphql, shop, accessToken, createAsActive, onProgress, genericDescription } = params;
+  const { cards, setInfo, adminGraphql, shop, accessToken, createAsActive, onProgress, genericDescription, cardKingdomPrices } = params;
   const result: ImportResult = { created: 0, failed: 0, skipped: 0, errors: [] };
 
   // Load products that already exist for this set so re-runs are idempotent and
@@ -621,11 +623,27 @@ export async function importCardsToShopify(params: {
     const baseNonfoil = `${card.setCode}${card.collectorNumber}`;
     const baseFoil = `${baseNonfoil}foil`;
 
+    let nonfoilPrice = card.usdPrice ?? 0;
+    let foilPrice = card.usdFoilPrice ?? 0;
+    if (cardKingdomPrices) {
+      const ck = cardKingdomPrices.get(card.id);
+      if (ck) {
+        if (ck.nonfoil != null) {
+          const p = parseFloat(ck.nonfoil);
+          if (!isNaN(p) && p > 0) nonfoilPrice = p;
+        }
+        if (ck.foil != null) {
+          const p = parseFloat(ck.foil);
+          if (!isNaN(p) && p > 0) foilPrice = p;
+        }
+      }
+    }
+
     if (card.hasNonfoil) {
-      buildItem(card, baseNonfoil, card.usdPrice ?? 0, false);
+      buildItem(card, baseNonfoil, nonfoilPrice, false);
     }
     if (card.hasFoil) {
-      buildItem(card, baseFoil, card.usdFoilPrice ?? 0, true);
+      buildItem(card, baseFoil, foilPrice, true);
     }
   }
 

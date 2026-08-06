@@ -622,7 +622,7 @@ type MtgjsonPriceEntry = {
   };
 };
 
-type CardKingdomPriceEntry = {
+export type CardKingdomPriceEntry = {
   nonfoil: string | null;
   foil: string | null;
 };
@@ -1521,7 +1521,7 @@ async function fetchCardKingdomPricelistMapFromApi(): Promise<{
   };
 }
 
-async function readCardKingdomPricesFromDb(): Promise<Map<string, CardKingdomPriceEntry>> {
+export async function readCardKingdomPricesFromDb(): Promise<Map<string, CardKingdomPriceEntry>> {
   const now = Date.now();
   const cached = global.__cardKingdomDbCache;
   if (cached && cached.expiresAt > now) {
