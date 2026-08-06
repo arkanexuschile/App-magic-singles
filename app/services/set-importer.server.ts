@@ -802,6 +802,10 @@ export async function importCardsToShopify(params: {
       }
 
       result.created++;
+      if (result.created % 5 === 0) {
+        const m = process.memoryUsage();
+        console.log(`[import-mem] created=${result.created} heap=${Math.round(m.heapUsed/1024/1024)}MB rss=${Math.round(m.rss/1024/1024)}MB`);
+      }
     } catch (error) {
       result.failed++;
       result.errors.push({
