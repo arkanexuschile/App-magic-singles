@@ -161,7 +161,8 @@ async function runJobInBackground(params: {
     try {
       cardKingdomPrices = await readCardKingdomPricesFromDb();
     } catch { /* will fall back to Scryfall prices */ }
-    cardKingdomPrices = undefined; // TEMP: disable CK prices to debug OOM
+
+    const safeGraphql = createShopAdminClient(shop, accessToken).graphql;
 
     let pageUrl: string | undefined;
     let totalCards = 0;
@@ -179,11 +180,11 @@ async function runJobInBackground(params: {
       const batchResult = await importCardsToShopify({
         cards: page.cards,
         setInfo,
-        adminGraphql,
+        safeGraphql,
         shop,
         accessToken,
         createAsActive,
-        genericDescription: undefined, // TEMP: disable to debug OOM
+        genericDescription: config.genericDescription || undefined,
         cardKingdomPrices,
         onProgress: (progress: SetImportProgress) => {
           const now = Date.now();
