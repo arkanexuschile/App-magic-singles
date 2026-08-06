@@ -62,6 +62,7 @@ export type SyncConfigurationRecord = {
   currentScheduledRemainingBlocks: number | null;
   scheduledCursorProductId: string | null;
   scheduledCursorProductUpdatedAt: Date | null;
+  genericDescription: string;
 };
 
 const DEFAULT_CONFIG: Omit<SyncConfigurationRecord, "shop"> = {
@@ -117,6 +118,12 @@ const DEFAULT_CONFIG: Omit<SyncConfigurationRecord, "shop"> = {
   currentScheduledRemainingBlocks: null,
   scheduledCursorProductId: null,
   scheduledCursorProductUpdatedAt: null,
+  genericDescription:
+    `Ganar en Magic: The Gathering muchas veces depende de tener la carta correcta. Buscar cartas sueltas o singles Magic es una estrategia clave en el deckbuilding y la construcción de tu mazo.\n\n` +
+    `Las cartas Magic individuales te permiten optimizar tu estrategia en formatos como Commander, Standard, Pauper o Legacy, asegurando exactamente la pieza que necesitas sin depender del azar.\n\n` +
+    `Magic no es solo un juego competitivo; también es colección, historia y comunidad. Cada mazo que construyes cuenta algo, y a veces solo te falta ese comandante, planeswalker o criatura que completa tu idea.\n\n` +
+    `Los precios de nuestros singles de Magic: The Gathering se ajustan según la base de datos internacional Scryfall. El valor de una carta puede variar día a día, pero las colecciones de Magic han demostrado valorizarse con el tiempo.\n\n` +
+    `✨ Explora nuestro mundo de Singles MTG`,
 };
 
 type ZonedDateParts = {

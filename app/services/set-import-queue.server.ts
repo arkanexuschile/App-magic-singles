@@ -7,6 +7,7 @@ import {
 } from "./set-importer.server";
 import { ensureProductMetafieldDefinitions } from "./metafield-definitions.server";
 import { createShopAdminClient } from "./shopify/admin-client.server";
+import { getOrCreateSyncConfiguration } from "./sync-config.server";
 import type { SetImportProgress } from "./set-importer.server";
 
 const ERROR_CAP = 50;
@@ -161,6 +162,8 @@ async function runJobInBackground(params: {
       return;
     }
 
+    const config = await getOrCreateSyncConfiguration(shop);
+
     const result = await importCardsToShopify({
       cards,
       setInfo,
@@ -168,6 +171,7 @@ async function runJobInBackground(params: {
       shop,
       accessToken,
       createAsActive,
+      genericDescription: config.genericDescription || undefined,
       onProgress: (progress: SetImportProgress) => {
         const now = Date.now();
         const isFinal = progress.processed >= progress.total;

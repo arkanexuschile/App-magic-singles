@@ -530,8 +530,9 @@ export async function importCardsToShopify(params: {
   accessToken: string;
   createAsActive: boolean;
   onProgress?: (progress: SetImportProgress) => void;
+  genericDescription?: string;
 }): Promise<ImportResult> {
-  const { cards, setInfo, adminGraphql, shop, accessToken, createAsActive, onProgress } = params;
+  const { cards, setInfo, adminGraphql, shop, accessToken, createAsActive, onProgress, genericDescription } = params;
   const result: ImportResult = { created: 0, failed: 0, skipped: 0, errors: [] };
 
   // Load products that already exist for this set so re-runs are idempotent and
@@ -672,7 +673,7 @@ export async function importCardsToShopify(params: {
 
       const input: Record<string, unknown> = {
         title: displayTitle,
-        descriptionHtml: buildProductDescription(card).replace(/\n/g, "<br>"),
+        descriptionHtml: (genericDescription && genericDescription.trim()) ? genericDescription.trim().replace(/\n/g, "<br>") : buildProductDescription(card).replace(/\n/g, "<br>"),
         vendor: setInfo.name,
         productType: "Magic: The Gathering Single",
         status: createAsActive ? "ACTIVE" : "DRAFT",

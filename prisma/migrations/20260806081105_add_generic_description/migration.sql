@@ -1,0 +1,68 @@
+-- RedefineTables
+PRAGMA defer_foreign_keys=ON;
+PRAGMA foreign_keys=OFF;
+CREATE TABLE "new_SyncConfiguration" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "shop" TEXT NOT NULL,
+    "enabled" BOOLEAN NOT NULL DEFAULT false,
+    "dailyTime" TEXT NOT NULL DEFAULT '03:00',
+    "timezone" TEXT NOT NULL DEFAULT 'UTC',
+    "syncImage" BOOLEAN NOT NULL DEFAULT false,
+    "searchMode" TEXT NOT NULL DEFAULT 'sku',
+    "searchMetafieldNamespace" TEXT NOT NULL DEFAULT 'custom',
+    "searchMetafieldKey" TEXT NOT NULL DEFAULT 'card_lookup',
+    "useCustomScryfallIdField" BOOLEAN NOT NULL DEFAULT false,
+    "allowProductLevelCustomScryfallFallback" BOOLEAN NOT NULL DEFAULT false,
+    "customScryfallIdNs" TEXT NOT NULL DEFAULT 'custom',
+    "customScryfallIdKey" TEXT NOT NULL DEFAULT 'scryfall_id',
+    "priceSource" TEXT NOT NULL DEFAULT 'scryfall',
+    "justTcgApiKey" TEXT NOT NULL DEFAULT '',
+    "mtgjsonApiKey" TEXT NOT NULL DEFAULT '',
+    "displayCurrency" TEXT NOT NULL DEFAULT 'USD',
+    "priceAdjustmentMode" TEXT NOT NULL DEFAULT 'percent',
+    "priceAdjustmentPercent" REAL NOT NULL DEFAULT 0,
+    "priceAdjustmentFixed" REAL NOT NULL DEFAULT 0,
+    "minimumPrice" REAL NOT NULL DEFAULT 0,
+    "disableSuspiciousPriceAlert" BOOLEAN NOT NULL DEFAULT false,
+    "suspiciousPriceAlertThresholdPercent" REAL NOT NULL DEFAULT 50,
+    "scryfallMetafieldNs" TEXT NOT NULL DEFAULT 'custom',
+    "scryfallMetafieldKey" TEXT NOT NULL DEFAULT 'scryfall_meta',
+    "metadataInitialized" BOOLEAN NOT NULL DEFAULT false,
+    "imageSyncInitialized" BOOLEAN NOT NULL DEFAULT false,
+    "nextRunAt" DATETIME,
+    "lastRunAt" DATETIME,
+    "lastRunStatus" TEXT,
+    "lastError" TEXT,
+    "lastScheduledVariantsScanned" INTEGER,
+    "lastScheduledCardsMatched" INTEGER,
+    "lastScheduledPricesUpdated" INTEGER,
+    "lastScheduledMetafieldsUpdated" INTEGER,
+    "lastScheduledImagesUpdated" INTEGER,
+    "lastScheduledSkippedForMissingPrice" INTEGER,
+    "lastScheduledPreviousPricesStored" INTEGER,
+    "lastScheduledFailures" INTEGER,
+    "currentScheduledStatus" TEXT,
+    "currentScheduledStartedAt" DATETIME,
+    "currentScheduledUpdatedAt" DATETIME,
+    "currentScheduledTotalVariants" INTEGER,
+    "currentScheduledProcessedVariants" INTEGER,
+    "currentScheduledCardsMatched" INTEGER,
+    "currentScheduledPricesUpdated" INTEGER,
+    "currentScheduledSkippedForMissingPrice" INTEGER,
+    "currentScheduledFailures" INTEGER,
+    "currentScheduledSuspiciousCount" INTEGER,
+    "currentScheduledTotalBlocks" INTEGER,
+    "currentScheduledProcessedBlocks" INTEGER,
+    "currentScheduledRemainingBlocks" INTEGER,
+    "scheduledCursorProductId" TEXT,
+    "scheduledCursorProductUpdatedAt" DATETIME,
+    "genericDescription" TEXT NOT NULL DEFAULT '',
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL
+);
+INSERT INTO "new_SyncConfiguration" ("allowProductLevelCustomScryfallFallback", "createdAt", "currentScheduledCardsMatched", "currentScheduledFailures", "currentScheduledPricesUpdated", "currentScheduledProcessedBlocks", "currentScheduledProcessedVariants", "currentScheduledRemainingBlocks", "currentScheduledSkippedForMissingPrice", "currentScheduledStartedAt", "currentScheduledStatus", "currentScheduledSuspiciousCount", "currentScheduledTotalBlocks", "currentScheduledTotalVariants", "currentScheduledUpdatedAt", "customScryfallIdKey", "customScryfallIdNs", "dailyTime", "disableSuspiciousPriceAlert", "displayCurrency", "enabled", "id", "imageSyncInitialized", "justTcgApiKey", "lastError", "lastRunAt", "lastRunStatus", "lastScheduledCardsMatched", "lastScheduledFailures", "lastScheduledImagesUpdated", "lastScheduledMetafieldsUpdated", "lastScheduledPreviousPricesStored", "lastScheduledPricesUpdated", "lastScheduledSkippedForMissingPrice", "lastScheduledVariantsScanned", "metadataInitialized", "minimumPrice", "mtgjsonApiKey", "nextRunAt", "priceAdjustmentFixed", "priceAdjustmentMode", "priceAdjustmentPercent", "priceSource", "scheduledCursorProductId", "scheduledCursorProductUpdatedAt", "scryfallMetafieldKey", "scryfallMetafieldNs", "searchMetafieldKey", "searchMetafieldNamespace", "searchMode", "shop", "suspiciousPriceAlertThresholdPercent", "syncImage", "timezone", "updatedAt", "useCustomScryfallIdField") SELECT "allowProductLevelCustomScryfallFallback", "createdAt", "currentScheduledCardsMatched", "currentScheduledFailures", "currentScheduledPricesUpdated", "currentScheduledProcessedBlocks", "currentScheduledProcessedVariants", "currentScheduledRemainingBlocks", "currentScheduledSkippedForMissingPrice", "currentScheduledStartedAt", "currentScheduledStatus", "currentScheduledSuspiciousCount", "currentScheduledTotalBlocks", "currentScheduledTotalVariants", "currentScheduledUpdatedAt", "customScryfallIdKey", "customScryfallIdNs", "dailyTime", "disableSuspiciousPriceAlert", "displayCurrency", "enabled", "id", "imageSyncInitialized", "justTcgApiKey", "lastError", "lastRunAt", "lastRunStatus", "lastScheduledCardsMatched", "lastScheduledFailures", "lastScheduledImagesUpdated", "lastScheduledMetafieldsUpdated", "lastScheduledPreviousPricesStored", "lastScheduledPricesUpdated", "lastScheduledSkippedForMissingPrice", "lastScheduledVariantsScanned", "metadataInitialized", "minimumPrice", "mtgjsonApiKey", "nextRunAt", "priceAdjustmentFixed", "priceAdjustmentMode", "priceAdjustmentPercent", "priceSource", "scheduledCursorProductId", "scheduledCursorProductUpdatedAt", "scryfallMetafieldKey", "scryfallMetafieldNs", "searchMetafieldKey", "searchMetafieldNamespace", "searchMode", "shop", "suspiciousPriceAlertThresholdPercent", "syncImage", "timezone", "updatedAt", "useCustomScryfallIdField" FROM "SyncConfiguration";
+DROP TABLE "SyncConfiguration";
+ALTER TABLE "new_SyncConfiguration" RENAME TO "SyncConfiguration";
+CREATE UNIQUE INDEX "SyncConfiguration_shop_key" ON "SyncConfiguration"("shop");
+PRAGMA foreign_keys=ON;
+PRAGMA defer_foreign_keys=OFF;
