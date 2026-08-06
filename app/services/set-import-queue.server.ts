@@ -155,7 +155,7 @@ async function runJobInBackground(params: {
 
   const config = await getOrCreateSyncConfiguration(shop);
 
-  const workerPath = path.resolve(process.cwd(), "import-worker.cjs");
+  const workerPath = "/var/www/shopify-price-singles/import-worker.cjs";
   const workerArgs = JSON.stringify({
     jobId,
     shop,
@@ -165,11 +165,12 @@ async function runJobInBackground(params: {
     genericDescription: config.genericDescription || "",
   });
 
+  console.log(`[SetImportQueue] spawning worker: ${workerPath} job=${jobId}`);
   const child = spawn(process.execPath, [workerPath, workerArgs], {
     stdio: "inherit",
-    detached: true,
-    env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL || "file:./prisma/dev.sqlite" },
+    env: { ...process.env, DATABASE_URL: "file:/var/www/shopify-price-singles/prisma/dev.sqlite" },
   });
+  child.on("error", (err) => console.error(`[SetImportQueue] spawn error: ${err.message}`));
   child.unref();
 }
 
