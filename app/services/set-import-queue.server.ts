@@ -180,7 +180,7 @@ async function runJobInBackground(params: {
       const batchResult = await importCardsToShopify({
         cards: page.cards,
         setInfo,
-        safeGraphql,
+        adminGraphql: safeGraphql,
         shop,
         accessToken,
         createAsActive,
