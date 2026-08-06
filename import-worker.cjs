@@ -154,7 +154,6 @@ async function main() {
             status: createAsActive ? 'ACTIVE' : 'DRAFT',
             tags: [card.setCode.toUpperCase(), card.rarity, finishTag, `set:${card.setCode}`].join(','),
             metafields: buildMetafields(card, finish.foil),
-            variants: [{ price: finish.price.toFixed(2), sku }],
           };
 
           const result = await graphql(
@@ -169,16 +168,63 @@ async function main() {
 
           const apiErrors = result.errors || [];
           const userErrors = result.data?.productCreate?.userErrors || [];
+          const productId = result.data?.productCreate?.product?.id;
+
           if (apiErrors.length > 0 || userErrors.length > 0) {
             failed++;
             const msgs = [...apiErrors.map(e => e.message), ...userErrors.map(e => `${e.field}: ${e.message}`)];
             log(`ERROR ${sku}: ${msgs.join(', ')}`);
-          } else if (!result.data?.productCreate?.product?.id) {
+            continue;
+          }
+          if (!productId) {
             failed++;
             log(`ERROR ${sku}: no product ID returned`);
-          } else {
-            created++;
+            continue;
           }
+
+          // Fetch variant ID
+          const variantResult = await graphql(
+            `query GetVariant($productId: ID!) {
+              product(id: $productId) {
+                variants(first: 1) { edges { node { id inventoryItem { id } } } }
+              }
+            }`,
+            { productId }
+          );
+          const variant = variantResult.data?.product?.variants?.edges?.[0]?.node;
+          if (!variant) {
+            failed++;
+            log(`ERROR ${sku}: no variant found`);
+            continue;
+          }
+
+          // Update price and SKU via REST
+          const variantNumericId = variant.id.split('/').pop();
+          const restUrl = `https://${shop}/admin/api/${SHOPIFY_API_VERSION}/variants/${variantNumericId}.json`;
+          const restResp = await fetch(restUrl, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'X-Shopify-Access-Token': accessToken },
+            body: JSON.stringify({ variant: { id: variantNumericId, price: finish.price.toFixed(2), sku } }),
+          });
+          const restJson = await restResp.json();
+          if (!restResp.ok || restJson.errors) {
+            failed++;
+            log(`ERROR ${sku}: REST variant update failed`);
+            continue;
+          }
+
+          // Set inventory to trackable at default location
+          const invId = variant.inventoryItem?.id;
+          if (invId) {
+            const invNumericId = invId.split('/').pop();
+            await fetch(`https://${shop}/admin/api/${SHOPIFY_API_VERSION}/inventory_levels/set.json`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'X-Shopify-Access-Token': accessToken },
+              body: JSON.stringify({ location_id: 1, inventory_item_id: invNumericId, available: 1 }),
+            }).catch(() => {});
+          }
+
+          created++;
 
           // Update progress
           await p.setImportJob.update({
