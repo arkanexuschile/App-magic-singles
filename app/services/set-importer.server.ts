@@ -650,7 +650,7 @@ export async function importCardsToShopify(params: {
   const cardsWithoutFinishes = cards.filter((card) => !card.hasNonfoil && !card.hasFoil).length;
   result.skipped = skippedExisting + cardsWithoutFinishes;
 
-  const concurrency = 3;
+  const concurrency = 1;
   const queue = [...productsToCreate];
   const running: Array<Promise<void>> = [];
   let processed = 0;
