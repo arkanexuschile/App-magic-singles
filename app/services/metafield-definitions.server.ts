@@ -28,9 +28,6 @@ export const PRODUCT_METAFIELD_DEFINITIONS: MetafieldDefinitionSpec[] = [
   { namespace: "custom", key: "toughness", name: "Resistencia", type: "single_line_text_field" },
   { namespace: "custom", key: "keywords", name: "Palabras clave", type: "single_line_text_field" },
   { namespace: "custom", key: "released_at", name: "Fecha de lanzamiento", type: "date" },
-  { namespace: "custom", key: "previous_price", name: "Precio anterior", type: "number_decimal", description: "Precio antes de la última sincronización." },
-  { namespace: "custom", key: "card_lookup", name: "Clave de búsqueda", type: "single_line_text_field" },
-  { namespace: "custom", key: "scryfall_image_fp", name: "Fingerprint de imagen", type: "single_line_text_field" },
 ];
 
 const EXISTING_DEFINITIONS_QUERY = `#graphql

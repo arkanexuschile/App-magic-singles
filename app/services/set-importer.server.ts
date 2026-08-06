@@ -568,11 +568,15 @@ export async function importCardsToShopify(params: {
   cardKingdomPrices?: Map<string, CardKingdomPriceEntry>;
 }): Promise<ImportResult> {
   const { cards, setInfo, adminGraphql, shop, accessToken, createAsActive, onProgress, genericDescription, cardKingdomPrices } = params;
+  const m0 = process.memoryUsage();
+  console.log(`[import-mem] START cards=${cards.length} heap=${Math.round(m0.heapUsed/1024/1024)}MB`);
   const result: ImportResult = { created: 0, failed: 0, skipped: 0, errors: [] };
 
   // Load products that already exist for this set so re-runs are idempotent and
   // SKU collisions between different cards get a "-2", "-3", ... suffix.
   const existingProducts = await fetchExistingSetProducts(adminGraphql, setInfo.code.toLowerCase());
+  const m1 = process.memoryUsage();
+  console.log(`[import-mem] EXISTING=${existingProducts.length} heap=${Math.round(m1.heapUsed/1024/1024)}MB`);
   const existingSkus = new Map<string, string | null>(); // normalized sku -> scryfall id (or null)
   for (const product of existingProducts) {
     const ownerId = product.scryfallId?.toLowerCase() ?? null;
