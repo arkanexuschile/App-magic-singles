@@ -128,6 +128,8 @@ async function runJobInBackground(params: {
 }): Promise<void> {
   const { jobId, shop, accessToken, setCode, createAsActive } = params;
 
+  console.log(`[SetImportQueue] starting import for set=${setCode} job=${jobId}`);
+
   const setInfo = await getScryfallSet(setCode);
   if (!setInfo) {
     await db.setImportJob.update({
