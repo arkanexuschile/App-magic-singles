@@ -135,7 +135,7 @@ async function main() {
     let created = 0;
     let failed = 0;
 
-    const descriptionHtml = genericDescription ? genericDescription.replace(/\n/g, '<br>') : '';
+    const descriptionHtml = genericDescription || '';
 
     do {
       const page = await getSetCardsPage(setCode, pageUrl);
