@@ -204,54 +204,87 @@ export async function getSetCards(setCode: string): Promise<ScryfallCardInfo[]> 
     for (const card of json.data) {
       if (card.lang !== "en") continue;
       if (card.layout === "art_series") continue;
-      const imgUrl =
-        card.image_uris?.large ||
-        card.image_uris?.normal ||
-        card.image_uris?.small ||
-        card.card_faces?.[0]?.image_uris?.large ||
-        card.card_faces?.[0]?.image_uris?.normal;
-      const finishes = card.finishes ?? ["nonfoil"];
-      cards.push({
-        id: card.id,
-        oracleId: card.oracle_id ?? "",
-        name: card.name,
-        setCode: card.set,
-        set_name: card.set_name,
-        collectorNumber: card.collector_number,
-        rarity: card.rarity,
-        usdPrice: card.prices.usd ? parseFloat(card.prices.usd) : null,
-        usdFoilPrice: card.prices.usd_foil ? parseFloat(card.prices.usd_foil) : null,
-        eurPrice: card.prices.eur ? parseFloat(card.prices.eur) : null,
-        imageUrl: imgUrl,
-        oracleText: card.oracle_text,
-        typeLine: card.type_line,
-        manaCost: card.mana_cost,
-        cmc: card.cmc ?? null,
-        finishes,
-        colors: card.colors ?? [],
-        colorIdentity: card.color_identity ?? [],
-        keywords: card.keywords ?? [],
-        lang: card.lang,
-        artist: card.artist ?? null,
-        power: card.power ?? null,
-        toughness: card.toughness ?? null,
-        frame: card.frame ?? null,
-        fullArt: Boolean(card.full_art),
-        textless: Boolean(card.textless),
-        promo: Boolean(card.promo),
-        booster: Boolean(card.booster),
-        storySpotlight: Boolean(card.story_spotlight),
-        releasedAt: card.released_at ?? null,
-        legalities: card.legalities ?? {},
-        hasFoil: finishes.includes("foil") || finishes.includes("etched"),
-        hasNonfoil: finishes.includes("nonfoil"),
-      });
+      cards.push(mapScryfallCard(card));
     }
     url = json.has_more && json.next_page
       ? json.next_page.replace(SCRYFALL_API, "")
       : "";
   }
   return cards;
+}
+
+function mapScryfallCard(card: ScryfallCardJson): ScryfallCardInfo {
+  const imgUrl =
+    card.image_uris?.large ||
+    card.image_uris?.normal ||
+    card.image_uris?.small ||
+    card.card_faces?.[0]?.image_uris?.large ||
+    card.card_faces?.[0]?.image_uris?.normal;
+  const finishes = card.finishes ?? ["nonfoil"];
+  return {
+    id: card.id,
+    oracleId: card.oracle_id ?? "",
+    name: card.name,
+    setCode: card.set,
+    set_name: card.set_name,
+    collectorNumber: card.collector_number,
+    rarity: card.rarity,
+    usdPrice: card.prices.usd ? parseFloat(card.prices.usd) : null,
+    usdFoilPrice: card.prices.usd_foil ? parseFloat(card.prices.usd_foil) : null,
+    eurPrice: card.prices.eur ? parseFloat(card.prices.eur) : null,
+    imageUrl: imgUrl,
+    oracleText: card.oracle_text,
+    typeLine: card.type_line,
+    manaCost: card.mana_cost,
+    cmc: card.cmc ?? null,
+    finishes,
+    colors: card.colors ?? [],
+    colorIdentity: card.color_identity ?? [],
+    keywords: card.keywords ?? [],
+    lang: card.lang,
+    artist: card.artist ?? null,
+    power: card.power ?? null,
+    toughness: card.toughness ?? null,
+    frame: card.frame ?? null,
+    fullArt: Boolean(card.full_art),
+    textless: Boolean(card.textless),
+    promo: Boolean(card.promo),
+    booster: Boolean(card.booster),
+    storySpotlight: Boolean(card.story_spotlight),
+    releasedAt: card.released_at ?? null,
+    legalities: card.legalities ?? {},
+    hasFoil: finishes.includes("foil") || finishes.includes("etched"),
+    hasNonfoil: finishes.includes("nonfoil"),
+  };
+}
+
+/**
+ * Returns a page of cards for a set. Each page has at most ~175 cards (Scryfall max page size).
+ */
+export async function getSetCardsPage(setCode: string, pageUrl?: string): Promise<{
+  cards: ScryfallCardInfo[];
+  nextPage?: string;
+  total: number;
+}> {
+  const url = pageUrl || `/cards/search?q=set:${setCode}&order=set&unique=prints`;
+  const response = await scryfallFetch(url);
+  const json = (await response.json()) as {
+    data: ScryfallCardJson[];
+    has_more: boolean;
+    next_page?: string;
+    total_cards: number;
+  };
+  const cards: ScryfallCardInfo[] = [];
+  for (const card of json.data) {
+    if (card.lang !== "en") continue;
+    if (card.layout === "art_series") continue;
+    cards.push(mapScryfallCard(card));
+  }
+  return {
+    cards,
+    nextPage: json.has_more ? json.next_page?.replace(SCRYFALL_API, "") : undefined,
+    total: json.total_cards,
+  };
 }
 
 const PRODUCT_CREATE_QUERY = `#graphql
@@ -599,7 +632,7 @@ export async function importCardsToShopify(params: {
   const cardsWithoutFinishes = cards.filter((card) => !card.hasNonfoil && !card.hasFoil).length;
   result.skipped = skippedExisting + cardsWithoutFinishes;
 
-  const concurrency = 3;
+  const concurrency = 1;
   const queue = [...productsToCreate];
   const running: Array<Promise<void>> = [];
   let processed = 0;

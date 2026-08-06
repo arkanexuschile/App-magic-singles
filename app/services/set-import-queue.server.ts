@@ -2,7 +2,7 @@ import type { SetImportJob } from "@prisma/client";
 import db from "../db.server";
 import {
   getScryfallSet,
-  getSetCards,
+  getSetCardsPage,
   importCardsToShopify,
 } from "./set-importer.server";
 import { ensureProductMetafieldDefinitions } from "./metafield-definitions.server";
@@ -140,14 +140,6 @@ async function runJobInBackground(params: {
     return;
   }
 
-  let cards;
-  try {
-    cards = await getSetCards(setCode);
-  } catch (error) {
-    await failJob(jobId, error instanceof Error ? error.message : String(error));
-    return;
-  }
-
   let lastProgressWrite = 0;
   try {
     try {
@@ -164,48 +156,69 @@ async function runJobInBackground(params: {
 
     const config = await getOrCreateSyncConfiguration(shop);
 
-    const result = await importCardsToShopify({
-      cards,
-      setInfo,
-      adminGraphql,
-      shop,
-      accessToken,
-      createAsActive,
-      genericDescription: config.genericDescription || undefined,
-      onProgress: (progress: SetImportProgress) => {
-        const now = Date.now();
-        const isFinal = progress.processed >= progress.total;
-        if (!isFinal && now - lastProgressWrite < PROGRESS_INTERVAL_MS) {
-          return;
-        }
-        lastProgressWrite = now;
-        return db.setImportJob
-          .update({
-            where: { id: jobId },
-            data: {
-              total: progress.total,
-              processed: progress.processed,
-              created: progress.created,
-              failed: progress.failed,
-              skipped: progress.skipped,
-              errorCount: progress.failed,
-            },
-          })
-          .catch(() => undefined);
-      },
-    });
+    let pageUrl: string | undefined;
+    let totalCards = 0;
+    let cumulativeCreated = 0;
+    let cumulativeFailed = 0;
+    let cumulativeSkipped = 0;
+    let cumulativeProcessed = 0;
+    const cumulativeErrors: Array<{ card: string; error: string }> = [];
+
+    do {
+      const page = await getSetCardsPage(setCode, pageUrl);
+      pageUrl = page.nextPage;
+      totalCards = page.total;
+
+      const batchResult = await importCardsToShopify({
+        cards: page.cards,
+        setInfo,
+        adminGraphql,
+        shop,
+        accessToken,
+        createAsActive,
+        genericDescription: config.genericDescription || undefined,
+        onProgress: (progress: SetImportProgress) => {
+          const now = Date.now();
+          const isFinal = cumulative.processed + progress.processed >= totalCards;
+          if (!isFinal && now - lastProgressWrite < PROGRESS_INTERVAL_MS) {
+            return;
+          }
+          lastProgressWrite = now;
+          return db.setImportJob
+            .update({
+              where: { id: jobId },
+              data: {
+                total: totalCards,
+                processed: cumulativeProcessed + progress.processed,
+                created: cumulativeCreated + progress.created,
+                failed: cumulativeFailed + progress.failed,
+                skipped: cumulativeSkipped + progress.skipped,
+                errorCount: cumulativeFailed + progress.failed,
+              },
+            })
+            .catch(() => undefined);
+        },
+      });
+
+      cumulativeCreated += batchResult.created;
+      cumulativeFailed += batchResult.failed;
+      cumulativeSkipped += batchResult.skipped;
+      cumulativeProcessed += batchResult.created + batchResult.failed + batchResult.skipped;
+      cumulativeErrors.push(...batchResult.errors);
+
+    } while (pageUrl);
 
     await db.setImportJob.update({
       where: { id: jobId },
       data: {
         status: "completed",
-        total: result.created + result.failed + result.skipped,
-        processed: result.created + result.failed + result.skipped,
-        created: result.created,
-        failed: result.failed,
-        skipped: result.skipped,
-        errorCount: result.errors.length,
-        errors: JSON.stringify(result.errors.slice(0, ERROR_CAP)),
+        total: cumulativeProcessed,
+        processed: cumulativeProcessed,
+        created: cumulativeCreated,
+        failed: cumulativeFailed,
+        skipped: cumulativeSkipped,
+        errorCount: cumulativeErrors.length,
+        errors: JSON.stringify(cumulativeErrors.slice(0, ERROR_CAP)),
         finishedAt: new Date(),
       },
     });
