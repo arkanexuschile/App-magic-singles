@@ -1,18 +1,16 @@
 import type { SetImportJob } from "@prisma/client";
+import { spawn } from "child_process";
+import path from "path";
 import db from "../db.server";
 import {
   getScryfallSet,
-  getSetCardsPage,
-  importCardsToShopify,
 } from "./set-importer.server";
 import { ensureProductMetafieldDefinitions } from "./metafield-definitions.server";
 import { createShopAdminClient } from "./shopify/admin-client.server";
 import { getOrCreateSyncConfiguration } from "./sync-config.server";
-import { readCardKingdomPricesFromDb } from "./price-sync.server";
 import type { SetImportProgress } from "./set-importer.server";
 
 const ERROR_CAP = 50;
-const PROGRESS_INTERVAL_MS = 2000;
 
 export async function recoverStaleImportJobs(): Promise<number> {
   const result = await db.setImportJob.updateMany({
@@ -128,120 +126,49 @@ async function runJobInBackground(params: {
   setCode: string;
   createAsActive: boolean;
 }): Promise<void> {
-  const { jobId, shop, accessToken, adminGraphql, setCode, createAsActive } = params;
-
-  await db.setImportJob.update({
-    where: { id: jobId },
-    data: { status: "running", startedAt: new Date() },
-  });
+  const { jobId, shop, accessToken, setCode, createAsActive } = params;
 
   const setInfo = await getScryfallSet(setCode);
   if (!setInfo) {
-    await failJob(jobId, `Set "${setCode}" not found`);
+    await db.setImportJob.update({
+      where: { id: jobId },
+      data: { status: "failed", message: `Set "${setCode}" not found`, finishedAt: new Date() },
+    });
     return;
   }
 
-  let lastProgressWrite = 0;
   try {
-    try {
-      await ensureProductMetafieldDefinitions(createShopAdminClient(shop, accessToken).graphql);
-    } catch (error) {
-      await failJob(
-        jobId,
-        `No se pudieron crear las definiciones de metafields: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-      );
-      return;
-    }
-
-    const config = await getOrCreateSyncConfiguration(shop);
-
-    // let cardKingdomPrices: Map<string, { nonfoil: string | null; foil: string | null }> | undefined;
-    // try {
-    //   cardKingdomPrices = await readCardKingdomPricesFromDb();
-    // } catch { /* will fall back to Scryfall prices */ }
-    const cardKingdomPrices = undefined;
-
-    const safeGraphql = createShopAdminClient(shop, accessToken).graphql;
-
-    let pageUrl: string | undefined;
-    let totalCards = 0;
-    let cumulativeCreated = 0;
-    let cumulativeFailed = 0;
-    let cumulativeSkipped = 0;
-    let cumulativeProcessed = 0;
-    const cumulativeErrors: Array<{ card: string; error: string }> = [];
-
-    do {
-      const page = await getSetCardsPage(setCode, pageUrl);
-      pageUrl = page.nextPage;
-      totalCards = page.total;
-
-      const batchResult = await importCardsToShopify({
-        cards: page.cards,
-        setInfo,
-        adminGraphql: safeGraphql,
-        shop,
-        accessToken,
-        createAsActive,
-        genericDescription: config.genericDescription || undefined,
-        cardKingdomPrices,
-        onProgress: (progress: SetImportProgress) => {
-          const now = Date.now();
-          const isFinal = cumulativeProcessed + progress.processed >= totalCards;
-          if (!isFinal && now - lastProgressWrite < PROGRESS_INTERVAL_MS) {
-            return;
-          }
-          lastProgressWrite = now;
-          return db.setImportJob
-            .update({
-              where: { id: jobId },
-              data: {
-                total: totalCards,
-                processed: cumulativeProcessed + progress.processed,
-                created: cumulativeCreated + progress.created,
-                failed: cumulativeFailed + progress.failed,
-                skipped: cumulativeSkipped + progress.skipped,
-                errorCount: cumulativeFailed + progress.failed,
-              },
-            })
-            .catch(() => undefined);
-        },
-      });
-
-      cumulativeCreated += batchResult.created;
-      cumulativeFailed += batchResult.failed;
-      cumulativeSkipped += batchResult.skipped;
-      cumulativeProcessed += batchResult.created + batchResult.failed + batchResult.skipped;
-      cumulativeErrors.push(...batchResult.errors);
-
-    } while (pageUrl);
-
+    await ensureProductMetafieldDefinitions(createShopAdminClient(shop, accessToken).graphql);
+  } catch (error) {
     await db.setImportJob.update({
       where: { id: jobId },
       data: {
-        status: "completed",
-        total: cumulativeProcessed,
-        processed: cumulativeProcessed,
-        created: cumulativeCreated,
-        failed: cumulativeFailed,
-        skipped: cumulativeSkipped,
-        errorCount: cumulativeErrors.length,
-        errors: JSON.stringify(cumulativeErrors.slice(0, ERROR_CAP)),
+        status: "failed",
+        message: `No se pudieron crear las definiciones de metafields: ${error instanceof Error ? error.message : String(error)}`,
         finishedAt: new Date(),
       },
     });
-  } catch (error) {
-    await failJob(jobId, error instanceof Error ? error.message : String(error));
+    return;
   }
-}
 
-async function failJob(jobId: string, message: string) {
-  await db.setImportJob.update({
-    where: { id: jobId },
-    data: { status: "failed", message, finishedAt: new Date() },
+  const config = await getOrCreateSyncConfiguration(shop);
+
+  const workerPath = path.resolve(process.cwd(), "import-worker.cjs");
+  const workerArgs = JSON.stringify({
+    jobId,
+    shop,
+    accessToken,
+    setCode,
+    createAsActive,
+    genericDescription: config.genericDescription || "",
   });
+
+  const child = spawn(process.execPath, [workerPath, workerArgs], {
+    stdio: "inherit",
+    detached: true,
+    env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL || "file:./prisma/dev.sqlite" },
+  });
+  child.unref();
 }
 
 void recoverStaleImportJobs();
