@@ -13,21 +13,23 @@ export type MetafieldDefinitionSpec = {
 
 export const PRODUCT_METAFIELD_DEFINITIONS: MetafieldDefinitionSpec[] = [
   { namespace: "custom", key: "scryfall_id", name: "Scryfall ID", type: "single_line_text_field" },
-  { namespace: "custom", key: "oracle_id", name: "Oracle ID", type: "single_line_text_field" },
-  { namespace: "custom", key: "set_code", name: "Código de set", type: "single_line_text_field" },
+  { namespace: "custom", key: "set_single", name: "Set Single", type: "list.single_line_text_field" },
   { namespace: "custom", key: "collector_number", name: "Nº de colección", type: "single_line_text_field" },
-  { namespace: "custom", key: "foil", name: "Es foil", type: "boolean", description: "Indica si el producto es la variante foil de la carta." },
+  { namespace: "custom", key: "foil", name: "Foil", type: "boolean" },
   { namespace: "custom", key: "artist", name: "Artista", type: "single_line_text_field" },
-  { namespace: "custom", key: "cmc", name: "Coste de maná convertible", type: "number_decimal" },
-  { namespace: "custom", key: "colors", name: "Colores", type: "single_line_text_field" },
+  { namespace: "custom", key: "coste_de_mana_convertido", name: "Coste de Maná Convertido", type: "number_integer" },
+  { namespace: "custom", key: "single-color", name: "Color", type: "list.single_line_text_field" },
   { namespace: "custom", key: "rarity", name: "Rareza", type: "single_line_text_field" },
-  { namespace: "custom", key: "card_types", name: "Tipos de carta", type: "single_line_text_field" },
-  { namespace: "custom", key: "formats", name: "Formatos legales", type: "single_line_text_field" },
-  { namespace: "custom", key: "language", name: "Idioma", type: "single_line_text_field" },
+  { namespace: "custom", key: "card_type", name: "Card type", type: "single_line_text_field" },
+  { namespace: "custom", key: "formato", name: "Formato", type: "list.single_line_text_field" },
+  { namespace: "custom", key: "idioma", name: "Idioma", type: "single_line_text_field" },
+  { namespace: "custom", key: "oracle_id", name: "Oracle ID", type: "single_line_text_field" },
   { namespace: "custom", key: "power", name: "Fuerza", type: "single_line_text_field" },
   { namespace: "custom", key: "toughness", name: "Resistencia", type: "single_line_text_field" },
   { namespace: "custom", key: "keywords", name: "Palabras clave", type: "single_line_text_field" },
   { namespace: "custom", key: "released_at", name: "Fecha de lanzamiento", type: "date" },
+  { namespace: "custom", key: "edicion", name: "Edición", type: "single_line_text_field" },
+  { namespace: "custom", key: "objeto", name: "Objeto", type: "single_line_text_field" },
 ];
 
 const EXISTING_DEFINITIONS_QUERY = `#graphql

@@ -93,16 +93,24 @@ async function main() {
     function buildMetafields(card, foil) {
       const mf = [
         { namespace: 'custom', key: 'scryfall_id', value: card.id, type: 'single_line_text_field' },
-        { namespace: 'custom', key: 'set_code', value: card.setCode, type: 'single_line_text_field' },
+        { namespace: 'custom', key: 'oracle_id', value: card.oracleId || '', type: 'single_line_text_field' },
+        { namespace: 'custom', key: 'set_single', value: JSON.stringify([card.setCode]), type: 'list.single_line_text_field' },
         { namespace: 'custom', key: 'collector_number', value: card.collectorNumber, type: 'single_line_text_field' },
         { namespace: 'custom', key: 'foil', value: foil ? 'true' : 'false', type: 'boolean' },
+        { namespace: 'custom', key: 'artist', value: card.artist || '', type: 'single_line_text_field' },
+        { namespace: 'custom', key: 'coste_de_mana_convertido', value: String(card.cmc || 0), type: 'number_integer' },
+        { namespace: 'custom', key: 'single-color', value: JSON.stringify(card.colors || []), type: 'list.single_line_text_field' },
         { namespace: 'custom', key: 'rarity', value: card.rarity, type: 'single_line_text_field' },
-        { namespace: 'custom', key: 'card_types', value: card.typeLine, type: 'single_line_text_field' },
-        { namespace: 'custom', key: 'language', value: card.lang === 'en' ? 'Inglés' : card.lang, type: 'single_line_text_field' },
+        { namespace: 'custom', key: 'card_type', value: card.typeLine, type: 'single_line_text_field' },
+        { namespace: 'custom', key: 'formato', value: JSON.stringify(Object.keys(card.legalities || {}).filter(k => card.legalities[k] === 'legal')), type: 'list.single_line_text_field' },
+        { namespace: 'custom', key: 'idioma', value: card.lang === 'en' ? 'Inglés' : (card.lang || ''), type: 'single_line_text_field' },
+        { namespace: 'custom', key: 'power', value: card.power || '', type: 'single_line_text_field' },
+        { namespace: 'custom', key: 'toughness', value: card.toughness || '', type: 'single_line_text_field' },
+        { namespace: 'custom', key: 'keywords', value: (card.keywords || []).join(', '), type: 'single_line_text_field' },
+        { namespace: 'custom', key: 'released_at', value: card.releasedAt || '', type: 'date' },
+        { namespace: 'custom', key: 'edicion', value: card.set_name, type: 'single_line_text_field' },
+        { namespace: 'custom', key: 'objeto', value: 'Carta', type: 'single_line_text_field' },
       ];
-      if (card.artist) mf.push({ namespace: 'custom', key: 'artist', value: card.artist, type: 'single_line_text_field' });
-      if (card.colors.length) mf.push({ namespace: 'custom', key: 'colors', value: card.colors.join(','), type: 'single_line_text_field' });
-      if (card.keywords.length) mf.push({ namespace: 'custom', key: 'keywords', value: card.keywords.join(', '), type: 'single_line_text_field' });
       return mf;
     }
 
