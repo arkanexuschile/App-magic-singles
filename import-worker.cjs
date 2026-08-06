@@ -115,6 +115,20 @@ async function main() {
       return `${card.name} Regular${foil ? ' Foil' : ''} (ingles) ${card.collectorNumber}`;
     }
 
+    // --- Load Card Kingdom prices ---
+    let ckPrices = new Map();
+    try {
+      const ckRows = await p.cardKingdomPriceCache.findMany({
+        select: { scryfallId: true, nonfoilPrice: true, foilPrice: true }
+      });
+      for (const r of ckRows) {
+        ckPrices.set(r.scryfallId, { nonfoil: r.nonfoilPrice, foil: r.foilPrice });
+      }
+      log(`CK cache loaded: ${ckPrices.size} entries`);
+    } catch (e) {
+      log(`CK cache unavailable: ${e.message}`);
+    }
+
     // --- Import each page ---
     let pageUrl = null;
     let totalCards = 0;
@@ -130,8 +144,8 @@ async function main() {
 
       for (const card of page.cards) {
         const finishes = [];
-        if (card.hasNonfoil) finishes.push({ foil: false, price: card.usdPrice || 0 });
-        if (card.hasFoil) finishes.push({ foil: true, price: card.usdFoilPrice || 0 });
+        if (card.hasNonfoil) { let p = card.usdPrice || 0; const ck = ckPrices.get(card.id); if (ck?.nonfoil) { const v = parseFloat(ck.nonfoil); if (!isNaN(v) && v > 0) p = v; } finishes.push({ foil: false, price: p }); }
+        if (card.hasFoil) { let p = card.usdFoilPrice || 0; const ck = ckPrices.get(card.id); if (ck?.foil) { const v = parseFloat(ck.foil); if (!isNaN(v) && v > 0) p = v; } finishes.push({ foil: true, price: p }); }
 
         for (const finish of finishes) {
           const sku = `${card.setCode}${card.collectorNumber}${finish.foil ? 'foil' : ''}`;
