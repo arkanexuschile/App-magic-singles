@@ -167,10 +167,15 @@ async function main() {
             { input }
           );
 
+          const apiErrors = result.errors || [];
           const userErrors = result.data?.productCreate?.userErrors || [];
-          if (userErrors.length > 0) {
+          if (apiErrors.length > 0 || userErrors.length > 0) {
             failed++;
-            log(`ERROR ${sku}: ${userErrors.map(e => e.message).join(', ')}`);
+            const msgs = [...apiErrors.map(e => e.message), ...userErrors.map(e => `${e.field}: ${e.message}`)];
+            log(`ERROR ${sku}: ${msgs.join(', ')}`);
+          } else if (!result.data?.productCreate?.product?.id) {
+            failed++;
+            log(`ERROR ${sku}: no product ID returned`);
           } else {
             created++;
           }
