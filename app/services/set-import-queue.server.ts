@@ -186,7 +186,7 @@ async function runJobInBackground(params: {
         cardKingdomPrices,
         onProgress: (progress: SetImportProgress) => {
           const now = Date.now();
-          const isFinal = cumulative.processed + progress.processed >= totalCards;
+          const isFinal = cumulativeProcessed + progress.processed >= totalCards;
           if (!isFinal && now - lastProgressWrite < PROGRESS_INTERVAL_MS) {
             return;
           }
