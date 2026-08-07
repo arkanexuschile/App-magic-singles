@@ -105,6 +105,10 @@ model ExchangeRateCache {
   updatedAt DateTime @updatedAt
 }
 
+model ImportedScryfallId {
+  scryfallId String @id
+}
+
 model CardKingdomPriceCache {
   scryfallId      String   @id
   nonfoilPrice    String?

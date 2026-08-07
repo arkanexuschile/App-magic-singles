@@ -156,36 +156,15 @@ async function main() {
       log(`CK cache unavailable: ${e.message}`);
     }
 
-    // --- Load existing Scryfall IDs to skip duplicates ---
+    // --- Load existing Scryfall IDs from local DB to skip duplicates ---
     const existingScryfallIds = new Set();
     try {
-      let cursor = null;
-      let pageCount = 0;
-      do {
-        const queryStr = cursor
-          ? `query($c: String) { products(first: 250, after: $c) { edges { node { id metafields(first: 1, keys: ["scryfall_id"]) { edges { node { value } } } } } pageInfo { hasNextPage endCursor } } }`
-          : `query { products(first: 250) { edges { node { id metafields(first: 1, keys: ["scryfall_id"]) { edges { node { value } } } } } pageInfo { hasNextPage endCursor } } }`;
-        const resp = await graphql(queryStr, cursor ? { c: cursor } : {});
-        if (pageCount === 1) log(`Dedup raw: hasData=${!!resp.data} hasErrors=${!!resp.errors} keys=${Object.keys(resp).join(',')}`);
-        if (resp.errors) {
-          log(`Dedup query error: ${JSON.stringify(resp.errors).slice(0,200)}`);
-          break;
-        }
-        pageCount++;
-        const edges = resp.data?.products?.edges || [];
-        for (const edge of edges) {
-          const sids = edge.node.metafields?.edges || [];
-          for (const mf of sids) {
-            if (mf.node.value) existingScryfallIds.add(mf.node.value);
-          }
-        }
-        if (pageCount === 1) log(`Dedup page 1: ${edges.length} products, IDs so far: ${existingScryfallIds.size}`);
-        cursor = resp.data?.products?.pageInfo?.hasNextPage ? resp.data.products.pageInfo.endCursor : null;
-      } while (cursor && existingScryfallIds.size < 50000 && cursor.length > 0);
+      const ids = await p.importedScryfallId.findMany({ select: { scryfallId: true } });
+      for (const r of ids) existingScryfallIds.add(r.scryfallId);
     } catch (e) {
-      log(`Could not load existing products: ${e.message || JSON.stringify(e).slice(0,200)}`);
+      log(`Could not load imported IDs: ${e.message || e}`);
     }
-    log(`Existing Scryfall IDs: ${existingScryfallIds.size}`);
+    log(`Existing Scryfall IDs in DB: ${existingScryfallIds.size}`);
 
     // --- Import each page ---
     let pageUrl = null;
@@ -221,7 +200,7 @@ async function main() {
             category: 'gid://shopify/TaxonomyCategory/tg-2-7',
             status: createAsActive ? 'ACTIVE' : 'DRAFT',
             published: true,
-            tags: [card.setCode.toUpperCase(), card.rarity, finishTag, `set:${card.setCode}`, 'singlemtg'].join(','),
+            tags: [card.setCode.toUpperCase(), card.rarity, finishTag, `setcode-${card.setCode}`, 'singlemtg'].join(','),
             templateSuffix: 'singles',
             metafields: buildMetafields(card, finish.foil),
           };
@@ -311,6 +290,9 @@ async function main() {
           }
 
           created++;
+          existingScryfallIds.add(card.id);
+          // Save to DB for future dedup
+          p.importedScryfallId.create({ data: { scryfallId: card.id } }).catch(() => {});
 
           // Update progress
           await p.setImportJob.update({
