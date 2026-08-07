@@ -163,9 +163,13 @@ async function main() {
       let pageCount = 0;
       do {
         const queryStr = cursor
-          ? `query($c: String) { products(first: 250, after: $c) { edges { node { id metafields(namespace: "custom", keys: ["scryfall_id"]) { edges { node { value } } } } } pageInfo { hasNextPage endCursor } } }`
-          : `query { products(first: 250) { edges { node { id metafields(namespace: "custom", keys: ["scryfall_id"]) { edges { node { value } } } } } pageInfo { hasNextPage endCursor } } }`;
+          ? `query($c: String) { products(first: 250, after: $c) { edges { node { id metafields(first: 1, namespace: "custom", keys: ["scryfall_id"]) { edges { node { value } } } } } pageInfo { hasNextPage endCursor } } }`
+          : `query { products(first: 250) { edges { node { id metafields(first: 1, namespace: "custom", keys: ["scryfall_id"]) { edges { node { value } } } } } pageInfo { hasNextPage endCursor } } }`;
         const resp = await graphql(queryStr, cursor ? { c: cursor } : {});
+        if (resp.errors) {
+          log(`Dedup query error: ${JSON.stringify(resp.errors).slice(0,200)}`);
+          break;
+        }
         pageCount++;
         const edges = resp.data?.products?.edges || [];
         for (const edge of edges) {
@@ -178,7 +182,7 @@ async function main() {
         cursor = resp.data?.products?.pageInfo?.hasNextPage ? resp.data.products.pageInfo.endCursor : null;
       } while (cursor && existingScryfallIds.size < 50000 && cursor.length > 0);
     } catch (e) {
-      log(`Could not load existing products: ${e.message}`);
+      log(`Could not load existing products: ${e.message || JSON.stringify(e).slice(0,200)}`);
     }
     log(`Existing Scryfall IDs: ${existingScryfallIds.size}`);
 
