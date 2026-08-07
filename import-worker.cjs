@@ -170,7 +170,7 @@ async function main() {
             descriptionHtml,
             vendor: '',
             productType: 'singlemtg',
-            category: 'tg-2-7',
+            category: 'gid://shopify/TaxonomyCategory/tg-2-7',
             status: createAsActive ? 'ACTIVE' : 'DRAFT',
             tags: [card.setCode.toUpperCase(), card.rarity, finishTag, `set:${card.setCode}`].join(','),
             metafields: buildMetafields(card, finish.foil),
