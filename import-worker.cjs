@@ -160,18 +160,13 @@ async function main() {
     const existingScryfallIds = new Set();
     try {
       let cursor = null;
+      let pageCount = 0;
       do {
-        const resp = await graphql(
-          `query ExistingScryfallIds($cursor: String) {
-            products(first: 250, after: $cursor, query: "product_type:singlemtg") {
-              edges { node {
-                metafields(namespace: "custom", keys: ["scryfall_id"]) { edges { node { value } } }
-              }}
-              pageInfo { hasNextPage endCursor }
-            }
-          }`,
-          { cursor }
-        );
+        const queryStr = cursor
+          ? `query($c: String) { products(first: 250, after: $c) { edges { node { id metafields(namespace: "custom", keys: ["scryfall_id"]) { edges { node { value } } } } } pageInfo { hasNextPage endCursor } } }`
+          : `query { products(first: 250) { edges { node { id metafields(namespace: "custom", keys: ["scryfall_id"]) { edges { node { value } } } } } pageInfo { hasNextPage endCursor } } }`;
+        const resp = await graphql(queryStr, cursor ? { c: cursor } : {});
+        pageCount++;
         const edges = resp.data?.products?.edges || [];
         for (const edge of edges) {
           const sids = edge.node.metafields?.edges || [];
@@ -179,8 +174,9 @@ async function main() {
             if (mf.node.value) existingScryfallIds.add(mf.node.value);
           }
         }
+        if (pageCount === 1) log(`Dedup page 1: ${edges.length} products, IDs so far: ${existingScryfallIds.size}`);
         cursor = resp.data?.products?.pageInfo?.hasNextPage ? resp.data.products.pageInfo.endCursor : null;
-      } while (cursor);
+      } while (cursor && existingScryfallIds.size < 50000 && cursor.length > 0);
     } catch (e) {
       log(`Could not load existing products: ${e.message}`);
     }
