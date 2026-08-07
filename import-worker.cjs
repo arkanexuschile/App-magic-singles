@@ -163,7 +163,7 @@ async function main() {
       do {
         const resp = await graphql(
           `query ExistingScryfallIds($cursor: String) {
-            products(first: 250, after: $cursor, query: "tag:singlemtg") {
+            products(first: 250, after: $cursor, query: "product_type:singlemtg") {
               edges { node {
                 metafields(namespace: "custom", keys: ["scryfall_id"]) { edges { node { value } } }
               }}
