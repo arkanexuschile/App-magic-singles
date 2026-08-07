@@ -163,8 +163,8 @@ async function main() {
       let pageCount = 0;
       do {
         const queryStr = cursor
-          ? `query($c: String) { products(first: 250, after: $c) { edges { node { id metafields(first: 1, namespace: "custom", keys: ["scryfall_id"]) { edges { node { value } } } } } pageInfo { hasNextPage endCursor } } }`
-          : `query { products(first: 250) { edges { node { id metafields(first: 1, namespace: "custom", keys: ["scryfall_id"]) { edges { node { value } } } } } pageInfo { hasNextPage endCursor } } }`;
+          ? `query($c: String) { products(first: 250, after: $c) { edges { node { id metafields(first: 1, keys: ["scryfall_id"]) { edges { node { value } } } } } pageInfo { hasNextPage endCursor } } }`
+          : `query { products(first: 250) { edges { node { id metafields(first: 1, keys: ["scryfall_id"]) { edges { node { value } } } } } pageInfo { hasNextPage endCursor } } }`;
         const resp = await graphql(queryStr, cursor ? { c: cursor } : {});
         if (resp.errors) {
           log(`Dedup query error: ${JSON.stringify(resp.errors).slice(0,200)}`);
