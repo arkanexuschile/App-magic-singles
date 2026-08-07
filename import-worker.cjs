@@ -186,6 +186,7 @@ async function main() {
             category: 'gid://shopify/TaxonomyCategory/tg-2-7',
             status: createAsActive ? 'ACTIVE' : 'DRAFT',
             tags: [card.setCode.toUpperCase(), card.rarity, finishTag, `set:${card.setCode}`].join(','),
+            templateSuffix: 'singles',
             metafields: buildMetafields(card, finish.foil),
           };
 
