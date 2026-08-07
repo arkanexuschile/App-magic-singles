@@ -129,6 +129,8 @@ async function main() {
         { namespace: 'custom', key: 'edicion', value: card.set_name, type: 'single_line_text_field' },
         { namespace: 'custom', key: 'objeto', value: 'Carta', type: 'single_line_text_field' },
       ];
+      mf.push({ namespace: 'shopify', key: 'condition', value: 'shopify--condition.near-mint-mint-nm-m', type: 'list.metaobject_reference' });
+
       return mf;
     }
 
