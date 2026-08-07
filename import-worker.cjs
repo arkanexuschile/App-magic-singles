@@ -240,7 +240,7 @@ async function main() {
           const restResp = await fetch(restUrl, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json', 'X-Shopify-Access-Token': accessToken },
-            body: JSON.stringify({ variant: { id: variantNumericId, price: Math.round(finish.price * CLP_RATE).toString(), sku } }),
+            body: JSON.stringify({ variant: { id: variantNumericId, price: Math.round(finish.price * CLP_RATE).toString(), sku, inventory_management: 'shopify', requires_shipping: true } }),
           });
           const restJson = await restResp.json();
           if (!restResp.ok || restJson.errors) {
@@ -249,21 +249,15 @@ async function main() {
             continue;
           }
 
-          // Enable inventory tracking + set stock to 0
+          // Enable inventory tracking
           const invId = variant.inventoryItem?.id;
           if (invId) {
             const invNumericId = invId.split('/').pop();
-            // Enable tracking
             await fetch(`https://${shop}/admin/api/${SHOPIFY_API_VERSION}/inventory_items/${invNumericId}.json`, {
               method: 'PUT',
               headers: { 'Content-Type': 'application/json', 'X-Shopify-Access-Token': accessToken },
               body: JSON.stringify({ inventory_item: { id: invNumericId, tracked: true } }),
             }).catch(() => {});
-            // Set stock to 0
-            await fetch(`https://${shop}/admin/api/${SHOPIFY_API_VERSION}/inventory_levels/set.json`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', 'X-Shopify-Access-Token': accessToken },
-              body: JSON.stringify({ location_id: 1, inventory_item_id: invNumericId, available: 0 }),
             }).catch(() => {});
           }
 
