@@ -163,7 +163,7 @@ async function main() {
       do {
         const resp = await graphql(
           `query ExistingScryfallIds($cursor: String) {
-            products(first: 250, after: $cursor) {
+            products(first: 250, after: $cursor, query: "tag:mtgsingle") {
               edges { node {
                 metafields(namespace: "custom", keys: ["scryfall_id"]) { edges { node { value } } }
               }}
@@ -220,7 +220,7 @@ async function main() {
             category: 'gid://shopify/TaxonomyCategory/tg-2-7',
             status: createAsActive ? 'ACTIVE' : 'DRAFT',
             published: true,
-            tags: [card.setCode.toUpperCase(), card.rarity, finishTag, `set:${card.setCode}`].join(','),
+            tags: [card.setCode.toUpperCase(), card.rarity, finishTag, `set:${card.setCode}`, 'mtgsingle'].join(','),
             templateSuffix: 'singles',
             metafields: buildMetafields(card, finish.foil),
           };
