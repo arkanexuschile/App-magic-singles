@@ -118,6 +118,17 @@ export async function getSetImportJob(id: string, shop: string): Promise<SetImpo
   return row ? serializeJob(row) : null;
 }
 
+export async function cancelSetImportJob(id: string, shop: string): Promise<boolean> {
+  const row = await db.setImportJob.findFirst({ where: { id, shop, status: { in: ["queued", "running"] } } });
+  if (!row) return false;
+  await db.setImportJob.update({
+    where: { id },
+    data: { status: "cancelled", message: "Cancelado por el usuario", finishedAt: new Date() },
+  });
+  console.log(`[SetImportQueue] cancelled job ${id}`);
+  return true;
+}
+
 async function runJobInBackground(params: {
   jobId: string;
   shop: string;

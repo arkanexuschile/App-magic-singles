@@ -38,6 +38,7 @@ import {
   enqueueSetImport,
   listSetImportJobs,
   getSetImportJob,
+  cancelSetImportJob,
 } from "../services/set-import-queue.server";
 import type { SetImportJobView } from "../services/set-import-queue.server";
 import { fetchUsdToClpRate } from "../services/price-sync.server";
@@ -106,6 +107,15 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 export const action = async ({ request }: ActionFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
   const formData = await request.formData();
+  const intent = formData.get("intent") as string;
+
+  // Cancel job
+  if (intent === "cancel") {
+    const jobId = formData.get("jobId") as string;
+    await cancelSetImportJob(jobId, session.shop);
+    return json({ ok: true });
+  }
+
   const setCode = formData.get("setCode") as string;
   const createAsActive = formData.get("createAsActive") === "true";
 
@@ -517,6 +527,13 @@ export default function SetsPage() {
                 {activeJob.processed} / {activeJob.total || "..."}{" "}
                 {isEs ? "procesados" : "processed"}
               </Text>
+              <Form method="post">
+                <input type="hidden" name="intent" value="cancel" />
+                <input type="hidden" name="jobId" value={activeJob.id} />
+                <Button submit variant="secondary" tone="critical" size="slim">
+                  {isEs ? "Cancelar" : "Cancel"}
+                </Button>
+              </Form>
             </BlockStack>
           </Card>
         )}

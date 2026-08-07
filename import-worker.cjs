@@ -316,6 +316,16 @@ async function main() {
             where: { id: jobId },
             data: { total: totalCards, processed: created + failed, created, failed },
           }).catch(() => {});
+
+          // Check for cancellation every 10 products
+          if (created % 10 === 0) {
+            const current = await p.setImportJob.findUnique({ where: { id: jobId }, select: { status: true } }).catch(() => null);
+            if (current?.status === 'cancelled') {
+              log('Cancelled by user');
+              await p.$disconnect();
+              process.exit(0);
+            }
+          }
         }
       }
 
