@@ -187,6 +187,7 @@ async function main() {
             productType: 'singlemtg',
             category: 'gid://shopify/TaxonomyCategory/tg-2-7',
             status: createAsActive ? 'ACTIVE' : 'DRAFT',
+            published: true,
             tags: [card.setCode.toUpperCase(), card.rarity, finishTag, `set:${card.setCode}`].join(','),
             templateSuffix: 'singles',
             metafields: buildMetafields(card, finish.foil),
@@ -249,14 +250,21 @@ async function main() {
             continue;
           }
 
-          // Set inventory to trackable at default location
+          // Enable inventory tracking + set stock to 0
           const invId = variant.inventoryItem?.id;
           if (invId) {
             const invNumericId = invId.split('/').pop();
+            // Enable tracking
+            await fetch(`https://${shop}/admin/api/${SHOPIFY_API_VERSION}/inventory_items/${invNumericId}.json`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json', 'X-Shopify-Access-Token': accessToken },
+              body: JSON.stringify({ inventory_item: { id: invNumericId, tracked: true } }),
+            }).catch(() => {});
+            // Set stock to 0
             await fetch(`https://${shop}/admin/api/${SHOPIFY_API_VERSION}/inventory_levels/set.json`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json', 'X-Shopify-Access-Token': accessToken },
-              body: JSON.stringify({ location_id: 1, inventory_item_id: invNumericId, available: 1 }),
+              body: JSON.stringify({ location_id: 1, inventory_item_id: invNumericId, available: 0 }),
             }).catch(() => {});
           }
 
