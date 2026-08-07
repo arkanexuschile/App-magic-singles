@@ -166,6 +166,7 @@ async function main() {
           ? `query($c: String) { products(first: 250, after: $c) { edges { node { id metafields(first: 1, keys: ["scryfall_id"]) { edges { node { value } } } } } pageInfo { hasNextPage endCursor } } }`
           : `query { products(first: 250) { edges { node { id metafields(first: 1, keys: ["scryfall_id"]) { edges { node { value } } } } } pageInfo { hasNextPage endCursor } } }`;
         const resp = await graphql(queryStr, cursor ? { c: cursor } : {});
+        if (pageCount === 1) log(`Dedup raw: hasData=${!!resp.data} hasErrors=${!!resp.errors} keys=${Object.keys(resp).join(',')}`);
         if (resp.errors) {
           log(`Dedup query error: ${JSON.stringify(resp.errors).slice(0,200)}`);
           break;
