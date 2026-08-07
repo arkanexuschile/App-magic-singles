@@ -258,7 +258,6 @@ async function main() {
               headers: { 'Content-Type': 'application/json', 'X-Shopify-Access-Token': accessToken },
               body: JSON.stringify({ inventory_item: { id: invNumericId, tracked: true } }),
             }).catch(() => {});
-            }).catch(() => {});
           }
 
           // Add product image
