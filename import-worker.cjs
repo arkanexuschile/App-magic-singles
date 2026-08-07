@@ -44,7 +44,7 @@ async function main() {
       const url = pageUrl || `/cards/search?q=set%3A${code}&order=set&unique=prints`;
       const json = await scryfallFetch(url);
       const cards = json.data
-        .filter(c => c.lang === 'en' && c.layout !== 'art_series')
+        .filter(c => c.layout !== 'art_series')
         .map(c => ({
           id: c.id,
           name: c.name,
@@ -75,7 +75,7 @@ async function main() {
         }));
       return {
         cards,
-        nextPage: json.has_more ? json.next_page : null,
+        nextPage: json.has_more ? json.next_page?.replace(/^https?:\/\/api\.scryfall\.com/, '') : null,
         total: json.total_cards,
       };
     }
