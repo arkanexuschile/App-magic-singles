@@ -156,6 +156,36 @@ async function main() {
       log(`CK cache unavailable: ${e.message}`);
     }
 
+    // --- Load existing Scryfall IDs to skip duplicates ---
+    const existingScryfallIds = new Set();
+    try {
+      let cursor = null;
+      do {
+        const resp = await graphql(
+          `query ExistingScryfallIds($cursor: String) {
+            products(first: 250, after: $cursor, query: "product_type:singlemtg") {
+              edges { node {
+                metafields(namespace: "custom", keys: ["scryfall_id"]) { edges { node { value } } }
+              }}
+              pageInfo { hasNextPage endCursor }
+            }
+          }`,
+          { cursor }
+        );
+        const edges = resp.data?.products?.edges || [];
+        for (const edge of edges) {
+          const sids = edge.node.metafields?.edges || [];
+          for (const mf of sids) {
+            if (mf.node.value) existingScryfallIds.add(mf.node.value);
+          }
+        }
+        cursor = resp.data?.products?.pageInfo?.hasNextPage ? resp.data.products.pageInfo.endCursor : null;
+      } while (cursor);
+    } catch (e) {
+      log(`Could not load existing products: ${e.message}`);
+    }
+    log(`Existing Scryfall IDs: ${existingScryfallIds.size}`);
+
     // --- Import each page ---
     let pageUrl = null;
     let totalCards = 0;
@@ -170,6 +200,9 @@ async function main() {
       totalCards = page.total;
 
       for (const card of page.cards) {
+        // Skip if this card already exists in the store
+        if (existingScryfallIds.has(card.id)) continue;
+
         const finishes = [];
         if (card.hasNonfoil) { let p = card.usdPrice || 0; const ck = ckPrices.get(card.id); if (ck?.nonfoil) { const v = parseFloat(ck.nonfoil); if (!isNaN(v) && v > 0) p = v; } finishes.push({ foil: false, price: p }); }
         if (card.hasFoil) { let p = card.usdFoilPrice || 0; const ck = ckPrices.get(card.id); if (ck?.foil) { const v = parseFloat(ck.foil); if (!isNaN(v) && v > 0) p = v; } finishes.push({ foil: true, price: p }); }
