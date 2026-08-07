@@ -2,6 +2,7 @@
 const { PrismaClient } = require('@prisma/client');
 
 const SHOPIFY_API_VERSION = '2025-01';
+const CLP_RATE = 1000;
 const SCRYFALL_MIN_INTERVAL = 100;
 
 async function main() {
@@ -218,7 +219,7 @@ async function main() {
           const restResp = await fetch(restUrl, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json', 'X-Shopify-Access-Token': accessToken },
-            body: JSON.stringify({ variant: { id: variantNumericId, price: finish.price.toFixed(2), sku } }),
+            body: JSON.stringify({ variant: { id: variantNumericId, price: Math.round(finish.price * CLP_RATE).toString(), sku } }),
           });
           const restJson = await restResp.json();
           if (!restResp.ok || restJson.errors) {
