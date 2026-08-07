@@ -1,6 +1,6 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
-client_id = "3098e658a396a16326964861c2584727"
+client_id = "301de544ca2a71c07a6ca256cd01e474"
 name = "Magic Pricer Singles"
 application_url = "https://localhost"
 embedded = true
