@@ -253,11 +253,15 @@ async function main() {
           const invId = variant.inventoryItem?.id;
           if (invId) {
             const invNumericId = invId.split('/').pop();
-            await fetch(`https://${shop}/admin/api/${SHOPIFY_API_VERSION}/inventory_items/${invNumericId}.json`, {
+            const trackResp = await fetch(`https://${shop}/admin/api/${SHOPIFY_API_VERSION}/inventory_items/${invNumericId}.json`, {
               method: 'PUT',
               headers: { 'Content-Type': 'application/json', 'X-Shopify-Access-Token': accessToken },
               body: JSON.stringify({ inventory_item: { id: invNumericId, tracked: true } }),
-            }).catch(() => {});
+            });
+            const trackJson = await trackResp.json();
+            if (!trackResp.ok) {
+              log(`WARN ${sku}: inventory tracking failed: ${JSON.stringify(trackJson)}`);
+            }
           }
 
           // Add product image
