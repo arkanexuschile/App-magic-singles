@@ -92,6 +92,10 @@ async function main() {
 
     // --- Build product input ---
     function buildMetafields(card, foil) {
+      const colorNames = { W: 'Blanco', U: 'Azul', B: 'Negro', R: 'Rojo', G: 'Verde' };
+      const colorList = (card.colors || []).map(c => colorNames[c] || c);
+      if (colorList.length === 0) colorList.push('Incolora');
+      const legalFormats = Object.keys(card.legalities || {}).filter(k => card.legalities[k] === 'legal').map(f => f.charAt(0).toUpperCase() + f.slice(1));
       const mf = [
         { namespace: 'custom', key: 'scryfall_id', value: card.id, type: 'single_line_text_field' },
         { namespace: 'custom', key: 'oracle_id', value: card.oracleId || '', type: 'single_line_text_field' },
@@ -100,10 +104,10 @@ async function main() {
         { namespace: 'custom', key: 'foil', value: foil ? 'true' : 'false', type: 'boolean' },
         { namespace: 'custom', key: 'artist', value: card.artist || '', type: 'single_line_text_field' },
         { namespace: 'custom', key: 'coste_de_mana_convertido', value: String(card.cmc || 0), type: 'number_integer' },
-        { namespace: 'custom', key: 'single-color', value: JSON.stringify(card.colors || []), type: 'list.single_line_text_field' },
+        { namespace: 'custom', key: 'single-color', value: JSON.stringify(colorList), type: 'list.single_line_text_field' },
         { namespace: 'custom', key: 'rarity', value: card.rarity, type: 'single_line_text_field' },
         { namespace: 'custom', key: 'card_type', value: card.typeLine, type: 'single_line_text_field' },
-        { namespace: 'custom', key: 'formato', value: JSON.stringify(Object.keys(card.legalities || {}).filter(k => card.legalities[k] === 'legal')), type: 'list.single_line_text_field' },
+        { namespace: 'custom', key: 'formato', value: JSON.stringify(legalFormats), type: 'list.single_line_text_field' },
         { namespace: 'custom', key: 'idioma', value: card.lang === 'en' ? 'Inglés' : (card.lang || ''), type: 'single_line_text_field' },
         { namespace: 'custom', key: 'power', value: card.power || '', type: 'single_line_text_field' },
         { namespace: 'custom', key: 'toughness', value: card.toughness || '', type: 'single_line_text_field' },
