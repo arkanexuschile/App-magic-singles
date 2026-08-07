@@ -91,6 +91,19 @@ async function main() {
     }
 
     // --- Build product input ---
+    function translateCardType(typeLine) {
+      const main = (typeLine || '').split(/\s*[—\-]\s*/)[0].trim();
+      const typeMap = {
+        'Creature': 'Criatura', 'Artifact': 'Artefacto', 'Enchantment': 'Encantamiento',
+        'Instant': 'Instantáneo', 'Sorcery': 'Conjuro', 'Planeswalker': 'Planeswalker',
+        'Land': 'Tierra', 'Battle': 'Batalla',
+      };
+      for (const [en, es] of Object.entries(typeMap)) {
+        if (main.toLowerCase().includes(en.toLowerCase())) return es;
+      }
+      return main;
+    }
+
     function buildMetafields(card, foil) {
       const colorNames = { W: 'Blanco', U: 'Azul', B: 'Negro', R: 'Rojo', G: 'Verde' };
       const colorList = (card.colors || []).map(c => colorNames[c] || c);
@@ -106,7 +119,7 @@ async function main() {
         { namespace: 'custom', key: 'coste_de_mana_convertido', value: String(card.cmc || 0), type: 'number_integer' },
         { namespace: 'custom', key: 'single-color', value: JSON.stringify(colorList), type: 'list.single_line_text_field' },
         { namespace: 'custom', key: 'rarity', value: card.rarity, type: 'single_line_text_field' },
-        { namespace: 'custom', key: 'card_type', value: card.typeLine, type: 'single_line_text_field' },
+        { namespace: 'custom', key: 'card_type', value: translateCardType(card.typeLine), type: 'single_line_text_field' },
         { namespace: 'custom', key: 'formato', value: JSON.stringify(legalFormats), type: 'list.single_line_text_field' },
         { namespace: 'custom', key: 'idioma', value: card.lang === 'en' ? 'Inglés' : (card.lang || ''), type: 'single_line_text_field' },
         { namespace: 'custom', key: 'power', value: card.power || '', type: 'single_line_text_field' },
