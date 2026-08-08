@@ -1,0 +1,10 @@
+const XLSX = require('xlsx');
+const path = require('path');
+const f = path.join(process.env.USERPROFILE, 'Downloads', 'Revision_precios.xlsx');
+const wb = XLSX.readFile(f);
+const data = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: '' });
+const h = data[0];
+console.log('Sheet:', wb.SheetNames[0], 'rows:', data.length);
+h.forEach((v, i) => console.log(`[${i}] "${v}"`));
+console.log('\nFirst row data (cols 14-18):', data[1].slice(14, 19));
+console.log('Row 1 scryfall id at known pos:', data[1][16]);

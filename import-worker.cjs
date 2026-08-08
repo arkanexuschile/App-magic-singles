@@ -184,8 +184,8 @@ async function main() {
         if (existingScryfallIds.has(card.id)) continue;
 
         const finishes = [];
-        if (card.hasNonfoil) { let p = card.usdPrice || 0; const ck = ckPrices.get(card.id); if (ck?.nonfoil) { const v = parseFloat(ck.nonfoil); if (!isNaN(v) && v > 0) p = v; } finishes.push({ foil: false, price: p }); }
-        if (card.hasFoil) { let p = card.usdFoilPrice || 0; const ck = ckPrices.get(card.id); if (ck?.foil) { const v = parseFloat(ck.foil); if (!isNaN(v) && v > 0) p = v; } finishes.push({ foil: true, price: p }); }
+        if (card.hasNonfoil) { let p = card.usdPrice || 0; const ck = ckPrices.get(card.id); if (ck) { const v = parseFloat(ck.nonfoil || ck.foil || '0'); if (!isNaN(v) && v > 0) p = v; } finishes.push({ foil: false, price: p }); }
+        if (card.hasFoil) { let p = card.usdFoilPrice || 0; const ck = ckPrices.get(card.id); if (ck) { const v = parseFloat(ck.foil || ck.nonfoil || '0'); if (!isNaN(v) && v > 0) p = v; } finishes.push({ foil: true, price: p }); }
 
         for (const finish of finishes) {
           const sku = `${card.setCode}${card.collectorNumber}${finish.foil ? 'foil' : ''}`;
