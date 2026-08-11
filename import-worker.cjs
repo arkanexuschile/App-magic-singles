@@ -44,14 +44,12 @@ async function main() {
     }
 
     async function getSetCardsPage(code, pageUrl) {
-      const url = pageUrl || `/cards/search?q=set%3A${code}&order=set&unique=prints`;
+      let query = `set%3A${code}&order=set&unique=prints`;
+      if (langFilter !== 'all') query += `&q=lang%3A${langFilter}`;
+      const url = pageUrl || `/cards/search?${query}`;
       const json = await scryfallFetch(url);
       const cards = json.data
-        .filter(c => {
-          if (c.layout === 'art_series') return false;
-          if (langFilter === 'all') return true;
-          return c.lang === langFilter;
-        })
+        .filter(c => c.layout !== 'art_series')
         .map(c => ({
           id: c.id,
           name: c.name,
