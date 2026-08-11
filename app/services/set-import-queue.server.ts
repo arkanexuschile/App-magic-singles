@@ -88,12 +88,16 @@ export async function enqueueSetImport(params: {
     orderBy: { createdAt: "desc" },
   });
   if (active) {
-    // If the queued job is stale (>5 min), mark it as failed and start fresh
     const ageMs = Date.now() - active.createdAt.getTime();
     if (active.status === "queued" && ageMs > 5 * 60 * 1000) {
       await db.setImportJob.update({
         where: { id: active.id },
         data: { status: "failed", message: "Importación atascada (reinicio automático)", finishedAt: new Date() },
+      });
+    } else if (active.status === "running" && ageMs > 10 * 60 * 1000) {
+      await db.setImportJob.update({
+        where: { id: active.id },
+        data: { status: "failed", message: "Importación excedió tiempo límite", finishedAt: new Date() },
       });
     } else {
       return { job: serializeJob(active), alreadyRunning: true };
