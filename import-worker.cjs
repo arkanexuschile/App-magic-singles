@@ -40,6 +40,7 @@ async function main() {
       const response = await fetch(`https://api.scryfall.com${path}`, {
         headers: { 'User-Agent': 'magic-pricer-singles/1.0' }
       });
+      if (response.status === 404) return { data: [], total_cards: 0, has_more: false };
       if (!response.ok) throw new Error(`Scryfall ${response.status}`);
       return response.json();
     }
