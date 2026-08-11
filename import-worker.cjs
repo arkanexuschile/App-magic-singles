@@ -46,7 +46,7 @@ async function main() {
 
     async function getSetCardsPage(code, pageUrl) {
       let query = `set%3A${code}`;
-      if (langFilter !== 'all') query += `+lang%3A${langFilter}`;
+      if (langFilter !== 'all') query += `%2Blang%3A${langFilter}`;
       const url = pageUrl || `/cards/search?q=${query}&order=set&unique=prints`;
       const json = await scryfallFetch(url);
       const cards = json.data
