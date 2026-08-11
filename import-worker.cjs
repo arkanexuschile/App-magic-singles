@@ -40,7 +40,10 @@ async function main() {
       const response = await fetch(`https://api.scryfall.com${path}`, {
         headers: { 'User-Agent': 'magic-pricer-singles/1.0' }
       });
-      if (response.status === 404) return { data: [], total_cards: 0, has_more: false };
+      if (response.status === 404) {
+        scryfallEmpty = true;
+        return { data: [], total_cards: 0, has_more: false };
+      }
       if (!response.ok) throw new Error(`Scryfall ${response.status}`);
       return response.json();
     }
@@ -179,6 +182,7 @@ async function main() {
     let totalCards = 0;
     let created = 0;
     let failed = 0;
+    let scryfallEmpty = false;
 
     const descriptionHtml = genericDescription || '';
 
@@ -325,6 +329,11 @@ async function main() {
 
     } while (pageUrl);
 
+    const langName = langTitleNames[langFilter] || langFilter;
+    const message = scryfallEmpty && created === 0
+      ? `Este set no tiene cartas en ${langName}`
+      : null;
+
     await p.setImportJob.update({
       where: { id: jobId },
       data: {
@@ -333,6 +342,7 @@ async function main() {
         processed: created + failed,
         created,
         failed,
+        message,
         finishedAt: new Date(),
       },
     });
