@@ -9,7 +9,8 @@ async function main() {
   const args = JSON.parse(process.argv[2]);
   const { jobId, shop, accessToken, setCode, createAsActive, genericDescription, lang } = args;
   const langFilter = lang || 'en';
-  const langNames = { en: 'ingles', es: 'español', ja: 'japonés', pt: 'portugués' };
+  const langNames = { en: 'Inglés', es: 'Español', ja: 'Japonés', pt: 'Portugués' };
+  const langTitleNames = { en: 'ingles', es: 'español', ja: 'japonés', pt: 'portugués' };
   const langSuffix = langFilter === 'en' ? '' : langFilter;
 
   const p = new PrismaClient({ datasourceUrl: process.env.DATABASE_URL || 'file:./prisma/dev.sqlite' });
@@ -144,7 +145,7 @@ async function main() {
     }
 
     function buildTitle(card, foil) {
-      const langName = langNames[card.lang] || card.lang;
+      const langName = langTitleNames[card.lang] || card.lang;
       return `${card.name} Regular${foil ? ' Foil' : ''} (${langName}) ${card.collectorNumber}`;
     }
 
