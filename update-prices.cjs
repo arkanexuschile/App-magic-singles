@@ -56,11 +56,16 @@ async function main() {
 
     const isFoil = sku.toLowerCase().includes('foil');
 
-    // Try scryfall_id first, then SKU key
+    // Try scryfall_id first, then SKU key (both finishes)
     let ck = sid ? ckPrices.get(sid) : null;
     if (!ck && sku) {
       const skuKey = makeSkuKey(sku);
       if (skuKey) ck = ckPrices.get(skuKey);
+      // Cross-fallback: try the other finish
+      if (!ck && skuKey) {
+        const altKey = skuKey.endsWith(':foil') ? skuKey.replace(/:foil$/, ':nonfoil') : skuKey.replace(/:nonfoil$/, ':foil');
+        ck = ckPrices.get(altKey);
+      }
     }
 
     if (!ck) { notFound++; continue; }

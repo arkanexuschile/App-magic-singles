@@ -118,6 +118,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
   const setCode = formData.get("setCode") as string;
   const createAsActive = formData.get("createAsActive") === "true";
+  const langFilter = (formData.get("lang") as string) || "en";
 
   const setInfo = await getScryfallSet(setCode);
   if (!setInfo) {
@@ -132,6 +133,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const { job, alreadyRunning } = await enqueueSetImport({
     setCode,
     createAsActive,
+    lang: langFilter,
     adminGraphql: admin.graphql,
     shop: session.shop,
     accessToken,
@@ -183,6 +185,7 @@ export default function SetsPage() {
   const [search, setSearch] = useState(searchQuery);
   const [activeJobId, setActiveJobId] = useState<string | null>(currentJob?.id ?? null);
   const [createAsActive, setCreateAsActive] = useState(false);
+  const [importLang, setImportLang] = useState<"en" | "es" | "ja" | "pt" | "all">("en");
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
 
   const isSubmitting =
@@ -477,6 +480,21 @@ export default function SetsPage() {
                       ]}
                     />
                     <input type="hidden" name="createAsActive" value={createAsActive ? "true" : "false"} />
+                  </div>
+                  <div style={{ minWidth: 200 }}>
+                    <Select
+                      label={isEs ? "Idioma" : "Language"}
+                      value={importLang}
+                      onChange={(value) => setImportLang(value as typeof importLang)}
+                      options={[
+                        { label: isEs ? "Inglés" : "English", value: "en" },
+                        { label: isEs ? "Español" : "Spanish", value: "es" },
+                        { label: isEs ? "Japonés" : "Japanese", value: "ja" },
+                        { label: isEs ? "Portugués" : "Portuguese", value: "pt" },
+                        { label: isEs ? "Todos" : "All", value: "all" },
+                      ]}
+                    />
+                    <input type="hidden" name="lang" value={importLang} />
                   </div>
 
                   <input type="hidden" name="setCode" value={selectedSet.code} />

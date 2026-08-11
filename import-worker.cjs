@@ -7,7 +7,10 @@ const SCRYFALL_MIN_INTERVAL = 100;
 
 async function main() {
   const args = JSON.parse(process.argv[2]);
-  const { jobId, shop, accessToken, setCode, createAsActive, genericDescription, dbUrl } = args;
+  const { jobId, shop, accessToken, setCode, createAsActive, genericDescription, lang } = args;
+  const langFilter = lang || 'en';
+  const langNames = { en: 'ingles', es: 'español', ja: 'japonés', pt: 'portugués' };
+  const langSuffix = langFilter === 'en' ? '' : langFilter;
 
   const p = new PrismaClient({ datasourceUrl: dbUrl || process.env.DATABASE_URL });
 
@@ -44,7 +47,11 @@ async function main() {
       const url = pageUrl || `/cards/search?q=set%3A${code}&order=set&unique=prints`;
       const json = await scryfallFetch(url);
       const cards = json.data
-        .filter(c => c.lang === 'en' && c.layout !== 'art_series')
+        .filter(c => {
+          if (c.layout === 'art_series') return false;
+          if (langFilter === 'all') return true;
+          return c.lang === langFilter;
+        })
         .map(c => ({
           id: c.id,
           name: c.name,
@@ -121,7 +128,7 @@ async function main() {
         { namespace: 'custom', key: 'rarity', value: card.rarity, type: 'single_line_text_field' },
         { namespace: 'custom', key: 'card_type', value: translateCardType(card.typeLine), type: 'single_line_text_field' },
         { namespace: 'custom', key: 'formato', value: JSON.stringify(legalFormats), type: 'list.single_line_text_field' },
-        { namespace: 'custom', key: 'idioma', value: card.lang === 'en' ? 'Inglés' : (card.lang || ''), type: 'single_line_text_field' },
+        { namespace: 'custom', key: 'idioma', value: langNames[card.lang] || card.lang, type: 'single_line_text_field' },
         { namespace: 'custom', key: 'power', value: card.power || '', type: 'single_line_text_field' },
         { namespace: 'custom', key: 'toughness', value: card.toughness || '', type: 'single_line_text_field' },
         { namespace: 'custom', key: 'keywords', value: (card.keywords || []).join(', '), type: 'single_line_text_field' },
@@ -139,7 +146,8 @@ async function main() {
     }
 
     function buildTitle(card, foil) {
-      return `${card.name} Regular${foil ? ' Foil' : ''} (ingles) ${card.collectorNumber}`;
+      const langName = langNames[card.lang] || card.lang;
+      return `${card.name} Regular${foil ? ' Foil' : ''} (${langName}) ${card.collectorNumber}`;
     }
 
     // --- Load Card Kingdom prices ---
@@ -188,7 +196,7 @@ async function main() {
         if (card.hasFoil) { let p = card.usdFoilPrice || 0; const ck = ckPrices.get(card.id); if (ck) { const v = parseFloat(ck.foil || ck.nonfoil || '0'); if (!isNaN(v) && v > 0) p = v; } finishes.push({ foil: true, price: p }); }
 
         for (const finish of finishes) {
-          const sku = `${card.setCode}${card.collectorNumber}${finish.foil ? 'foil' : ''}`;
+          const sku = `${card.setCode}${card.collectorNumber}${langSuffix}${finish.foil ? 'foil' : ''}`;
           const title = buildTitle(card, finish.foil);
           const finishTag = finish.foil ? 'foil' : 'nonfoil';
 

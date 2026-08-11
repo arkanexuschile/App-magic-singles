@@ -79,6 +79,7 @@ export async function enqueueSetImport(params: {
   adminGraphql: (query: string, options?: Record<string, unknown>) => Promise<Response>;
   setCode: string;
   createAsActive: boolean;
+  lang?: string;
 }): Promise<{ job: SetImportJobView; alreadyRunning: boolean }> {
   const setCode = params.setCode.toLowerCase();
 
@@ -136,8 +137,9 @@ async function runJobInBackground(params: {
   adminGraphql: (query: string, options?: Record<string, unknown>) => Promise<Response>;
   setCode: string;
   createAsActive: boolean;
+  lang?: string;
 }): Promise<void> {
-  const { jobId, shop, accessToken, setCode, createAsActive } = params;
+  const { jobId, shop, accessToken, setCode, createAsActive, lang } = params;
 
   console.log(`[SetImportQueue] starting import for set=${setCode} job=${jobId}`);
 
@@ -173,6 +175,7 @@ async function runJobInBackground(params: {
     accessToken,
     setCode,
     createAsActive,
+    lang: lang || "en",
     genericDescription: config.genericDescription || "",
   });
 
