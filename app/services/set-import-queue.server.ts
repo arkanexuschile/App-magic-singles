@@ -151,8 +151,18 @@ async function runJobInBackground(params: {
   const { jobId, shop, accessToken, setCode, createAsActive, lang } = params;
 
   console.log(`[SetImportQueue] starting import for set=${setCode} job=${jobId}`);
+  await db.setImportJob.update({ where: { id: jobId }, data: { status: "running", startedAt: new Date() } }).catch(() => {});
 
-  const setInfo = await getScryfallSet(setCode);
+  let setInfo;
+  try {
+    setInfo = await getScryfallSet(setCode);
+  } catch (e) {
+    await db.setImportJob.update({
+      where: { id: jobId },
+      data: { status: "failed", message: `Scryfall API error: ${e instanceof Error ? e.message : String(e)}`, finishedAt: new Date() },
+    });
+    return;
+  }
   if (!setInfo) {
     await db.setImportJob.update({
       where: { id: jobId },
