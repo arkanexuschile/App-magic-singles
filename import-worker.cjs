@@ -12,7 +12,7 @@ async function main() {
   const langNames = { en: 'ingles', es: 'español', ja: 'japonés', pt: 'portugués' };
   const langSuffix = langFilter === 'en' ? '' : langFilter;
 
-  const p = new PrismaClient({ datasourceUrl: dbUrl || process.env.DATABASE_URL });
+  const p = new PrismaClient({ datasourceUrl: process.env.DATABASE_URL || 'file:./prisma/dev.sqlite' });
 
   function log(msg) { console.log(`[import-worker] ${msg}`); }
 
