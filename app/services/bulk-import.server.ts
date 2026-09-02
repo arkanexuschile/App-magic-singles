@@ -2,9 +2,14 @@ import * as XLSX from "xlsx";
 import { mapScryfallCard, SCRYFALL_API } from "./set-importer.server";
 import type { ScryfallCardInfo, ScryfallCardJson } from "./set-importer.server";
 
+export type CardSelection = {
+  scryfallId: string;
+  foil: boolean;
+};
+
 export type ExportGroup = {
   setCode: string;
-  cardIds: string[];
+  cardSelections: CardSelection[];
 };
 
 const SCRYFALL_MIN_INTERVAL = 100;
@@ -45,7 +50,7 @@ export async function fetchAllCards(setCode: string): Promise<ScryfallCardInfo[]
   return cards;
 }
 
-/** Assemble an Excel catalog buffer from the given cards. */
+/** Assemble an Excel catalog buffer from the given cards. One row per finish. */
 export function buildCatalogBuffer(cards: ScryfallCardInfo[]): Buffer {
   const header = [
     "set_code",
@@ -55,22 +60,30 @@ export function buildCatalogBuffer(cards: ScryfallCardInfo[]): Buffer {
     "raridad",
     "idioma",
     "edición",
+    "acabado",
     "imagen_url",
     "INCLUIR",
   ];
   const rows: Array<Array<string>> = [header];
   for (const c of cards) {
-    rows.push([
-      c.setCode,
-      c.id,
-      c.name,
-      c.collectorNumber,
-      c.rarity,
-      c.lang,
-      c.set_name,
-      c.imageUrl || "",
-      "",
-    ]);
+    const finished = c.finishes?.length ? c.finishes : [];
+    // Ensure we emit at least one row when no explicit finishes are reported.
+    const emit = finished.length > 0 ? finished : ["nonfoil"];
+    for (const finish of emit) {
+      const isFoil = finish === "foil";
+      rows.push([
+        c.setCode,
+        c.id,
+        c.name,
+        c.collectorNumber,
+        c.rarity,
+        c.lang,
+        c.set_name,
+        isFoil ? "foil" : "no-foil",
+        c.imageUrl || "",
+        "",
+      ]);
+    }
   }
 
   const ws = XLSX.utils.aoa_to_sheet(rows);
@@ -82,6 +95,7 @@ export function buildCatalogBuffer(cards: ScryfallCardInfo[]): Buffer {
     { wch: 12 },
     { wch: 10 },
     { wch: 40 },
+    { wch: 10 },
     { wch: 60 },
     { wch: 10 },
   ];
@@ -94,6 +108,8 @@ export function buildCatalogBuffer(cards: ScryfallCardInfo[]): Buffer {
  * Parse an uploaded Excel and return the selected (marked) cards grouped by set.
  * Selection is driven by the "INCLUIR" column: a row is included when it is
  * non-empty and not a "no" value (0 / no / falso / false).
+ * The finish is taken from the "acabado" column (no-foil / foil). When the column
+ * is missing, foil is inferred as false.
  */
 export function parseImportBuffer(buffer: ArrayBuffer): ExportGroup[] {
   const wb = XLSX.read(buffer, { type: "array" });
@@ -106,6 +122,7 @@ export function parseImportBuffer(buffer: ArrayBuffer): ExportGroup[] {
   const header = rows[0].map((h) => String(h ?? "").trim().toLowerCase());
   const setCol = header.indexOf("set_code");
   const idCol = header.indexOf("scryfall_id");
+  const finishCol = header.indexOf("acabado");
   const includeCol = header.indexOf("incluir");
 
   if (setCol < 0 || idCol < 0) {
@@ -118,6 +135,11 @@ export function parseImportBuffer(buffer: ArrayBuffer): ExportGroup[] {
     const v = String(value ?? "").trim().toLowerCase();
     return v !== "" && v !== "0" && v !== "no" && v !== "falso" && v !== "false";
   };
+  const parseFoil = (value: unknown): boolean => {
+    if (finishCol < 0) return false;
+    const v = String(value ?? "").trim().toLowerCase();
+    return v === "foil" || v === "si" || v === "sí" || v === "true" || v === "1";
+  };
 
   for (const row of rows.slice(1)) {
     if (!row || row.length === 0) continue;
@@ -126,8 +148,8 @@ export function parseImportBuffer(buffer: ArrayBuffer): ExportGroup[] {
     if (!setCode || !cardId) continue;
     if (!isMarked(row[includeCol])) continue;
 
-    const group = grouped.get(setCode) ?? { setCode, cardIds: [] };
-    group.cardIds.push(cardId);
+    const group = grouped.get(setCode) ?? { setCode, cardSelections: [] };
+    group.cardSelections.push({ scryfallId: cardId, foil: parseFoil(row[finishCol]) });
     grouped.set(setCode, group);
   }
 

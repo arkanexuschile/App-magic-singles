@@ -115,7 +115,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       return json({ error: "El Excel no tiene cartas marcadas en la columna INCLUIR." }, { status: 400 });
     }
 
-    const enqueued: Array<{ setCode: string; cardIds: string[]; total: number }> = [];
+    const enqueued: Array<{ setCode: string; total: number }> = [];
     for (const group of groups) {
       const setInfo = await getScryfallSet(group.setCode);
       if (!setInfo) {
@@ -125,12 +125,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         setCode: group.setCode,
         createAsActive,
         lang: "all",
-        cardIds: group.cardIds,
+        cardSelections: group.cardSelections,
         adminGraphql: admin.graphql,
         shop: session.shop,
         accessToken,
       });
-      enqueued.push({ setCode: group.setCode, cardIds: group.cardIds, total: group.cardIds.length });
+      enqueued.push({ setCode: group.setCode, total: group.cardSelections.length });
       void job;
       void alreadyRunning;
     }
@@ -157,7 +157,7 @@ function jobProgress(job: SetImportJobView): number {
 export default function BulkImportPage() {
   const { lang, sets, searchQuery, jobs, currentJob } = useLoaderData<typeof loader>();
   const actionData = useActionData<{
-    enqueued?: Array<{ setCode: string; cardIds: string[]; total: number }>;
+    enqueued?: Array<{ setCode: string; total: number }>;
     error?: string;
   }>();
   const navigation = useNavigation();

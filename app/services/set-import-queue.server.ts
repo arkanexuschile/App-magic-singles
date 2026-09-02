@@ -81,6 +81,7 @@ export async function enqueueSetImport(params: {
   createAsActive: boolean;
   lang?: string;
   cardIds?: string[];
+  cardSelections?: Array<{ scryfallId: string; foil: boolean }>;
 }): Promise<{ job: SetImportJobView; alreadyRunning: boolean }> {
   const setCode = params.setCode.toLowerCase();
 
@@ -153,8 +154,9 @@ async function runJobInBackground(params: {
   createAsActive: boolean;
   lang?: string;
   cardIds?: string[];
+  cardSelections?: Array<{ scryfallId: string; foil: boolean }>;
 }): Promise<void> {
-  const { jobId, shop, accessToken, setCode, createAsActive, lang, cardIds } = params;
+  const { jobId, shop, accessToken, setCode, createAsActive, lang, cardIds, cardSelections } = params;
 
   console.log(`[SetImportQueue] starting import for set=${setCode} job=${jobId}`);
   await db.setImportJob.update({ where: { id: jobId }, data: { status: "running", startedAt: new Date() } }).catch(() => {});
@@ -193,6 +195,7 @@ async function runJobInBackground(params: {
 
   const config = await getOrCreateSyncConfiguration(shop);
 
+  const hasSelections = Array.isArray(cardSelections) && cardSelections.length > 0;
   const workerPath = "/var/www/shopify-price-singles/import-worker.cjs";
   const workerArgs = JSON.stringify({
     jobId,
@@ -200,8 +203,9 @@ async function runJobInBackground(params: {
     accessToken,
     setCode,
     createAsActive,
-    lang: cardIds && cardIds.length > 0 ? "all" : lang || "en",
+    lang: hasSelections ? "all" : cardIds && cardIds.length > 0 ? "all" : lang || "en",
     cardIds,
+    cardSelections: hasSelections ? cardSelections : undefined,
     genericDescription: config.genericDescription || "",
   });
 

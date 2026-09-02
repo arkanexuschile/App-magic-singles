@@ -7,9 +7,18 @@ const SCRYFALL_MIN_INTERVAL = 100;
 
 async function main() {
   const args = JSON.parse(process.argv[2]);
-  const { jobId, shop, accessToken, setCode, createAsActive, genericDescription, lang, cardIds } = args;
+  const { jobId, shop, accessToken, setCode, createAsActive, genericDescription, lang, cardIds, cardSelections } = args;
   const langFilter = lang || 'en';
   const allowedCardIds = Array.isArray(cardIds) && cardIds.length > 0 ? new Set(cardIds.map(String)) : null;
+  // Excel import selects a specific finish per card. Map scryfall_id -> Set of foil booleans.
+  const allowedFinishes = Array.isArray(cardSelections) && cardSelections.length > 0
+    ? cardSelections.reduce((map, sel) => {
+        const key = String(sel.scryfallId);
+        if (!map.has(key)) map.set(key, new Set());
+        map.get(key).add(!!sel.foil);
+        return map;
+      }, new Map())
+    : null;
   const langNames = { en: 'Inglés', es: 'Español', ja: 'Japonés', pt: 'Portugués' };
   const langTitleNames = { en: 'ingles', es: 'español', ja: 'japonés', pt: 'portugués' };
   function idiomaName(lang) {
@@ -215,8 +224,9 @@ async function main() {
     // Fetch the set's existing variant SKUs so we only skip what is really published,
     // and create a marked card's finish (foil/nonfoil) even if its scryfall_id is
     // listed as "already imported" in the dedup table.
+    const whitelistMode = allowedFinishes ? true : !!allowedCardIds;
     let existingVariantSkus = new Set();
-    if (allowedCardIds) {
+    if (whitelistMode) {
       try {
         existingVariantSkus = await fetchExistingVariantSkus();
         log(`Whitelist mode: existing SKUs in store for ${setCode}: ${existingVariantSkus.size}`);
@@ -243,19 +253,25 @@ async function main() {
       for (const card of page.cards) {
         // Whitelist mode: skip only if the exact variant SKU is already in the store.
         // Otherwise (normal set import) skip by dedup scryfall_id.
-        if (!allowedCardIds && existingScryfallIds.has(card.id)) continue;
-        // Skip if a whitelist was provided and this card is not in it
+        if (!whitelistMode && existingScryfallIds.has(card.id)) continue;
+        // Card-level whitelist: skip if this card is not in the list of selected card IDs.
         if (allowedCardIds && !allowedCardIds.has(card.id)) continue;
+        // Finish-level whitelist: skip if the card is not selected at all.
+        if (allowedFinishes && !allowedFinishes.has(card.id)) continue;
 
         const finishes = [];
         if (card.hasNonfoil) { let p = card.usdPrice || 0; const ck = ckPrices.get(card.id); if (ck) { const v = parseFloat(ck.nonfoil || ck.foil || '0'); if (!isNaN(v) && v > 0) p = v; } finishes.push({ foil: false, price: p }); }
         if (card.hasFoil) { let p = card.usdFoilPrice || 0; const ck = ckPrices.get(card.id); if (ck) { const v = parseFloat(ck.foil || ck.nonfoil || '0'); if (!isNaN(v) && v > 0) p = v; } finishes.push({ foil: true, price: p }); }
 
-        for (const finish of finishes) {
+        // Finish-level whitelist: only keep the finishes the user marked for this card.
+        const allowedFoilSet = allowedFinishes ? allowedFinishes.get(card.id) : null;
+        const keptFinishes = allowedFoilSet ? finishes.filter((f) => allowedFoilSet.has(f.foil)) : finishes;
+
+        for (const finish of keptFinishes) {
           const cardLangSuffix = card.lang === 'en' ? '' : card.lang;
           const sku = `${card.setCode}${card.collectorNumber}${cardLangSuffix}${finish.foil ? 'foil' : ''}`;
           // Whitelist mode: skip this exact variant if it is already published.
-          if (allowedCardIds && existingVariantSkus.has(sku.toLowerCase())) {
+          if (whitelistMode && existingVariantSkus.has(sku.toLowerCase())) {
             skipped++;
             log(`SKIP (already in store): ${sku}`);
             continue;
