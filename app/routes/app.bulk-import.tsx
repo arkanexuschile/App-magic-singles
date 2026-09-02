@@ -66,13 +66,14 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const searchQuery = url.searchParams.get("q") || "";
   const jobId = url.searchParams.get("job") || "";
 
-  let sets: Array<{ code: string; name: string; setType: string; cardCount: number }> = [];
+  let sets: Array<{ code: string; name: string; setType: string; cardCount: number; iconUri?: string }> = [];
   if (searchQuery) {
     sets = (await searchScryfallSets(searchQuery)).map((s) => ({
       code: s.code,
       name: s.name,
       setType: s.setType,
       cardCount: s.cardCount,
+      iconUri: s.iconUri,
     }));
   } else {
     sets = (await listScryfallSets()).map((s) => ({
@@ -80,6 +81,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       name: s.name,
       setType: s.setType,
       cardCount: s.cardCount,
+      iconUri: s.iconUri,
     }));
   }
 
@@ -415,7 +417,16 @@ export default function BulkImportPage() {
                 )}
                 {filteredSets.map((set) => (
                   <Card key={set.code} padding="200">
-                    <InlineStack gap="200" align="space-between" blockAlign="center">
+                    <InlineStack gap="200" align="center" blockAlign="center">
+                      {set.iconUri ? (
+                        <img
+                          src={set.iconUri}
+                          alt=""
+                          style={{ width: 24, height: 24, flexShrink: 0 }}
+                        />
+                      ) : (
+                        <div style={{ width: 24, height: 24, flexShrink: 0 }} />
+                      )}
                       <Checkbox
                         label={`${set.name} (${set.code.toUpperCase()})${set.cardCount ? ` · ${set.cardCount}` : ""}`}
                         checked={selected.has(set.code)}
