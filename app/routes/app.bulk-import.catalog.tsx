@@ -32,21 +32,31 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   }
 
   const cards = [];
+  const skippedSets: string[] = [];
   for (const code of setCodes) {
-    const setCards = await fetchAllCards(code);
-    cards.push(...setCards);
+    try {
+      const setCards = await fetchAllCards(code);
+      cards.push(...setCards);
+    } catch (e) {
+      // Tolerate a single set failing (e.g. Scryfall throttling) instead of
+      // dropping the whole export. Log and continue with the rest.
+      console.error(`catalog: skipped set ${code}: ${e instanceof Error ? e.message : String(e)}`);
+      skippedSets.push(code);
+    }
   }
 
   const buffer = buildCatalogBuffer(cards);
   const fileSuffix = new Date().toISOString().slice(0, 10);
   const fileName = all ? `catalogo-todas-ediciones-${fileSuffix}.xlsx` : `catalogo-singles-${fileSuffix}.xlsx`;
 
-  return new Response(new Uint8Array(buffer), {
-    status: 200,
-    headers: {
-      "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "Content-Disposition": `attachment; filename="${fileName}"`,
-      "Cache-Control": "no-store",
-    },
-  });
+  const headers: Record<string, string> = {
+    "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "Content-Disposition": `attachment; filename="${fileName}"`,
+    "Cache-Control": "no-store",
+  };
+  if (skippedSets.length > 0) {
+    headers["X-Catalog-Skipped-Sets"] = skippedSets.join(",");
+  }
+
+  return new Response(new Uint8Array(buffer), { status: 200, headers });
 };

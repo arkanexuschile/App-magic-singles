@@ -14,6 +14,7 @@ export type ExportGroup = {
 };
 
 const SCRYFALL_MIN_INTERVAL = 100;
+const SCRYFALL_MAX_RETRIES = 3;
 let lastScryfallCall = 0;
 
 async function scryfallFetch(path: string): Promise<Response> {
@@ -23,9 +24,31 @@ async function scryfallFetch(path: string): Promise<Response> {
     await new Promise((r) => setTimeout(r, SCRYFALL_MIN_INTERVAL - elapsed));
   }
   lastScryfallCall = Date.now();
-  return fetch(`${SCRYFALL_API}${path}`, {
+
+  for (let attempt = 0; attempt <= SCRYFALL_MAX_RETRIES; attempt += 1) {
+    const response = await fetch(`${SCRYFALL_API}${path}`, {
+      headers: { "User-Agent": "magic-pricer-singles/1.0" },
+    });
+    if (response.ok) {
+      return response;
+    }
+    // Retry on throttling / server errors with backoff.
+    if (response.status === 429 || response.status >= 500) {
+      const retryAfterRaw = Number(response.headers.get("retry-after") ?? "");
+      const retryAfterMs =
+        Number.isFinite(retryAfterRaw) && retryAfterRaw > 0
+          ? retryAfterRaw * 1000
+          : Math.min(500 * (attempt + 1), 10_000);
+      await new Promise((r) => setTimeout(r, retryAfterMs));
+      continue;
+    }
+    return response;
+  }
+  // Give up after retries; caller decides how to handle.
+  const last = await fetch(`${SCRYFALL_API}${path}`, {
     headers: { "User-Agent": "magic-pricer-singles/1.0" },
-  });
+  }).catch(() => null);
+  return last ?? new Response(null, { status: 500 });
 }
 
 /** Fetch every printable card for a set across all languages. */
