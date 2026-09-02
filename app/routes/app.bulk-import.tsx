@@ -278,24 +278,37 @@ export default function BulkImportPage() {
 
   const totalCards = selected.size;
 
-  const allSetTypes = Array.from(
-    new Set(sets.map((s) => s.setType).filter(Boolean)),
-  ).sort();
+  const allSetTypes = [
+    "expansion", "commander", "core", "alchemy", "duel_deck", "starter", "masters",
+    "masterpiece", "premium_deck", "draft_innovation", "from_the_vault", "spellbook",
+    "planechase", "archenemy", "funny", "memorabilia", "token", "box", "arsenal",
+    "eternal", "minigame", "promo", "treasure_chest", "vanguard",
+  ];
   const setTypeLabels: Record<string, { en: string; es: string }> = {
     expansion: { en: "Expansion", es: "Expansión" },
     commander: { en: "Commander", es: "Commander" },
-    duel: { en: "Duel Deck", es: "Mazo Duelo" },
-    starter: { en: "Starter", es: "Inicial" },
     core: { en: "Core Set", es: "Set Básico" },
     alchemy: { en: "Alchemy", es: "Alchemy" },
-    arena: { en: "Arena", es: "Arena" },
+    duel_deck: { en: "Duel Deck", es: "Mazo Duelo" },
+    starter: { en: "Starter", es: "Inicial" },
+    masters: { en: "Masters", es: "Masters" },
     masterpiece: { en: "Masterpiece", es: "Obra maestra" },
-    funny: { en: "Funny", es: "Humorístico" },
+    premium_deck: { en: "Premium Deck", es: "Mazo Premium" },
+    draft_innovation: { en: "Draft Innovation", es: "Innovación Draft" },
     from_the_vault: { en: "From the Vault", es: "From the Vault" },
+    spellbook: { en: "Spellbook", es: "Spellbook" },
     planechase: { en: "Planechase", es: "Planechase" },
     archenemy: { en: "Archenemy", es: "Archenemy" },
-    spellbook: { en: "Spellbook", es: "Spellbook" },
+    funny: { en: "Funny", es: "Humorístico" },
+    memorabilia: { en: "Memorabilia", es: "Memorabilia" },
+    token: { en: "Token", es: "Token" },
+    box: { en: "Box", es: "Box" },
+    arsenal: { en: "Arsenal", es: "Arsenal" },
+    eternal: { en: "Eternal", es: "Eternal" },
     minigame: { en: "Minigame", es: "Minijuego" },
+    promo: { en: "Promo", es: "Promo" },
+    treasure_chest: { en: "Treasure Chest", es: "Cofre de tesoro" },
+    vanguard: { en: "Vanguard", es: "Vanguardia" },
   };
   const labelForType = (t: string) => {
     const l = setTypeLabels[t];
@@ -303,6 +316,10 @@ export default function BulkImportPage() {
     return t;
   };
 
+  const typeFilterValue = Array.from(typeFilter)[0] ?? "";
+  const handleTypeFilterChange = (value: string) => {
+    setTypeFilter(value ? new Set([value]) : new Set());
+  };
   const filteredSets = sets.filter(
     (s) => typeFilter.size === 0 || typeFilter.has(s.setType),
   );
@@ -357,35 +374,28 @@ export default function BulkImportPage() {
               </Text>
             </BlockStack>
 
-            {allSetTypes.length > 0 && (
               <BlockStack gap="100">
                 <Text as="p" variant="bodySm" fontWeight="semibold">
                   {isEs ? "Filtrar por tipo" : "Filter by type"}
                 </Text>
-                <InlineStack gap="200" wrap>
-                  {allSetTypes.map((t) => (
-                    <Checkbox
-                      key={t}
-                      label={labelForType(t)}
-                      checked={typeFilter.has(t)}
-                      onChange={(v) => {
-                        setTypeFilter((prev) => {
-                          const next = new Set(prev);
-                          if (v) next.add(t);
-                          else next.delete(t);
-                          return next;
-                        });
-                      }}
-                    />
-                  ))}
-                </InlineStack>
+                <div style={{ maxWidth: 320 }}>
+                  <Select
+                    label={isEs ? "Tipo de edición" : "Edition type"}
+                    labelHidden
+                    value={typeFilterValue}
+                    onChange={handleTypeFilterChange}
+                    options={[
+                      { label: isEs ? "Todos los tipos" : "All types", value: "" },
+                      ...allSetTypes.map((t) => ({ label: labelForType(t), value: t })),
+                    ]}
+                  />
+                </div>
                 {typeFilter.size > 0 && (
                   <Button variant="plain" size="slim" onClick={() => setTypeFilter(new Set())}>
                     {isEs ? "Quitar filtro" : "Clear filter"}
                   </Button>
                 )}
               </BlockStack>
-            )}
 
             <InlineStack gap="200" blockAlign="center">
               <Button onClick={handleSelectAllFiltered} variant="secondary" size="slim">
