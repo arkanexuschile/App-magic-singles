@@ -80,6 +80,7 @@ export async function enqueueSetImport(params: {
   setCode: string;
   createAsActive: boolean;
   lang?: string;
+  cardIds?: string[];
 }): Promise<{ job: SetImportJobView; alreadyRunning: boolean }> {
   const setCode = params.setCode.toLowerCase();
 
@@ -151,8 +152,9 @@ async function runJobInBackground(params: {
   setCode: string;
   createAsActive: boolean;
   lang?: string;
+  cardIds?: string[];
 }): Promise<void> {
-  const { jobId, shop, accessToken, setCode, createAsActive, lang } = params;
+  const { jobId, shop, accessToken, setCode, createAsActive, lang, cardIds } = params;
 
   console.log(`[SetImportQueue] starting import for set=${setCode} job=${jobId}`);
   await db.setImportJob.update({ where: { id: jobId }, data: { status: "running", startedAt: new Date() } }).catch(() => {});
@@ -198,7 +200,8 @@ async function runJobInBackground(params: {
     accessToken,
     setCode,
     createAsActive,
-    lang: lang || "en",
+    lang: cardIds && cardIds.length > 0 ? "all" : lang || "en",
+    cardIds,
     genericDescription: config.genericDescription || "",
   });
 

@@ -1,7 +1,7 @@
 import db from "../db.server";
 import type { CardKingdomPriceEntry } from "./price-sync.server";
 
-const SCRYFALL_API = "https://api.scryfall.com";
+export const SCRYFALL_API = "https://api.scryfall.com";
 const SCRYFALL_MIN_INTERVAL = 100;
 const SETS_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
 
@@ -214,7 +214,7 @@ export async function getSetCards(setCode: string): Promise<ScryfallCardInfo[]> 
   return cards;
 }
 
-function mapScryfallCard(card: ScryfallCardJson): ScryfallCardInfo {
+export function mapScryfallCard(card: ScryfallCardJson): ScryfallCardInfo {
   const imgUrl =
     card.image_uris?.large ||
     card.image_uris?.normal ||

@@ -7,11 +7,16 @@ const SCRYFALL_MIN_INTERVAL = 100;
 
 async function main() {
   const args = JSON.parse(process.argv[2]);
-  const { jobId, shop, accessToken, setCode, createAsActive, genericDescription, lang } = args;
+  const { jobId, shop, accessToken, setCode, createAsActive, genericDescription, lang, cardIds } = args;
   const langFilter = lang || 'en';
+  const allowedCardIds = Array.isArray(cardIds) && cardIds.length > 0 ? new Set(cardIds.map(String)) : null;
   const langNames = { en: 'Inglés', es: 'Español', ja: 'Japonés', pt: 'Portugués' };
   const langTitleNames = { en: 'ingles', es: 'español', ja: 'japonés', pt: 'portugués' };
-  const langSuffix = langFilter === 'en' ? '' : langFilter;
+  function idiomaName(lang) {
+    const name = langNames[lang];
+    if (name) return name;
+    return lang === 'en' ? 'Inglés' : lang === 'es' ? 'Español' : lang === 'ja' ? 'Japonés' : 'Otro';
+  }
 
   const p = new PrismaClient({ datasourceUrl: process.env.DATABASE_URL || 'file:./prisma/dev.sqlite' });
 
@@ -131,7 +136,7 @@ async function main() {
         { namespace: 'custom', key: 'rarity', value: card.rarity, type: 'single_line_text_field' },
         { namespace: 'custom', key: 'card_type', value: translateCardType(card.typeLine), type: 'single_line_text_field' },
         { namespace: 'custom', key: 'formato', value: JSON.stringify(legalFormats), type: 'list.single_line_text_field' },
-        { namespace: 'custom', key: 'idioma', value: langNames[card.lang] || card.lang, type: 'single_line_text_field' },
+        { namespace: 'custom', key: 'idioma', value: idiomaName(card.lang), type: 'single_line_text_field' },
         { namespace: 'custom', key: 'power', value: card.power || '', type: 'single_line_text_field' },
         { namespace: 'custom', key: 'toughness', value: card.toughness || '', type: 'single_line_text_field' },
         { namespace: 'custom', key: 'keywords', value: (card.keywords || []).join(', '), type: 'single_line_text_field' },
@@ -194,13 +199,16 @@ async function main() {
       for (const card of page.cards) {
         // Skip if this card already exists in the store
         if (existingScryfallIds.has(card.id)) continue;
+        // Skip if a whitelist was provided and this card is not in it
+        if (allowedCardIds && !allowedCardIds.has(card.id)) continue;
 
         const finishes = [];
         if (card.hasNonfoil) { let p = card.usdPrice || 0; const ck = ckPrices.get(card.id); if (ck) { const v = parseFloat(ck.nonfoil || ck.foil || '0'); if (!isNaN(v) && v > 0) p = v; } finishes.push({ foil: false, price: p }); }
         if (card.hasFoil) { let p = card.usdFoilPrice || 0; const ck = ckPrices.get(card.id); if (ck) { const v = parseFloat(ck.foil || ck.nonfoil || '0'); if (!isNaN(v) && v > 0) p = v; } finishes.push({ foil: true, price: p }); }
 
         for (const finish of finishes) {
-          const sku = `${card.setCode}${card.collectorNumber}${langSuffix}${finish.foil ? 'foil' : ''}`;
+          const cardLangSuffix = card.lang === 'en' ? '' : card.lang;
+          const sku = `${card.setCode}${card.collectorNumber}${cardLangSuffix}${finish.foil ? 'foil' : ''}`;
           const title = buildTitle(card, finish.foil);
           const finishTag = finish.foil ? 'foil' : 'nonfoil';
 
