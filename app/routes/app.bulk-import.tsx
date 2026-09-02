@@ -66,14 +66,21 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const searchQuery = url.searchParams.get("q") || "";
   const jobId = url.searchParams.get("job") || "";
 
-  let sets: Array<{ code: string; name: string }> = [];
+  let sets: Array<{ code: string; name: string; setType: string; cardCount: number }> = [];
   if (searchQuery) {
     sets = (await searchScryfallSets(searchQuery)).map((s) => ({
       code: s.code,
       name: s.name,
+      setType: s.setType,
+      cardCount: s.cardCount,
     }));
   } else {
-    sets = (await listScryfallSets()).map((s) => ({ code: s.code, name: s.name }));
+    sets = (await listScryfallSets()).map((s) => ({
+      code: s.code,
+      name: s.name,
+      setType: s.setType,
+      cardCount: s.cardCount,
+    }));
   }
 
   const jobs = await listSetImportJobs(session.shop);
@@ -167,6 +174,7 @@ export default function BulkImportPage() {
 
   const [search, setSearch] = useState(searchQuery);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [typeFilter, setTypeFilter] = useState<Set<string>>(new Set());
   const [createAsActive, setCreateAsActive] = useState(false);
   const [activeJobId, setActiveJobId] = useState<string | null>(currentJob?.id ?? null);
   const [downloading, setDownloading] = useState(false);
@@ -270,6 +278,46 @@ export default function BulkImportPage() {
 
   const totalCards = selected.size;
 
+  const allSetTypes = Array.from(
+    new Set(sets.map((s) => s.setType).filter(Boolean)),
+  ).sort();
+  const setTypeLabels: Record<string, { en: string; es: string }> = {
+    expansion: { en: "Expansion", es: "Expansión" },
+    commander: { en: "Commander", es: "Commander" },
+    duel: { en: "Duel Deck", es: "Mazo Duelo" },
+    starter: { en: "Starter", es: "Inicial" },
+    core: { en: "Core Set", es: "Set Básico" },
+    alchemy: { en: "Alchemy", es: "Alchemy" },
+    arena: { en: "Arena", es: "Arena" },
+    masterpiece: { en: "Masterpiece", es: "Obra maestra" },
+    funny: { en: "Funny", es: "Humorístico" },
+    from_the_vault: { en: "From the Vault", es: "From the Vault" },
+    planechase: { en: "Planechase", es: "Planechase" },
+    archenemy: { en: "Archenemy", es: "Archenemy" },
+    spellbook: { en: "Spellbook", es: "Spellbook" },
+    minigame: { en: "Minigame", es: "Minijuego" },
+  };
+  const labelForType = (t: string) => {
+    const l = setTypeLabels[t];
+    if (l) return isEs ? l.es : l.en;
+    return t;
+  };
+
+  const filteredSets = sets.filter(
+    (s) => typeFilter.size === 0 || typeFilter.has(s.setType),
+  );
+
+  const handleSelectAllFiltered = () => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      for (const s of filteredSets) next.add(s.code);
+      return next;
+    });
+  };
+  const handleClearAll = () => {
+    setSelected(new Set());
+  };
+
   return (
     <Page
       title={isEs ? "Importar por Excel" : "Import by Excel"}
@@ -309,13 +357,57 @@ export default function BulkImportPage() {
               </Text>
             </BlockStack>
 
+            {allSetTypes.length > 0 && (
+              <BlockStack gap="100">
+                <Text as="p" variant="bodySm" fontWeight="semibold">
+                  {isEs ? "Filtrar por tipo" : "Filter by type"}
+                </Text>
+                <InlineStack gap="200" wrap>
+                  {allSetTypes.map((t) => (
+                    <Checkbox
+                      key={t}
+                      label={labelForType(t)}
+                      checked={typeFilter.has(t)}
+                      onChange={(v) => {
+                        setTypeFilter((prev) => {
+                          const next = new Set(prev);
+                          if (v) next.add(t);
+                          else next.delete(t);
+                          return next;
+                        });
+                      }}
+                    />
+                  ))}
+                </InlineStack>
+                {typeFilter.size > 0 && (
+                  <Button variant="plain" size="slim" onClick={() => setTypeFilter(new Set())}>
+                    {isEs ? "Quitar filtro" : "Clear filter"}
+                  </Button>
+                )}
+              </BlockStack>
+            )}
+
+            <InlineStack gap="200" blockAlign="center">
+              <Button onClick={handleSelectAllFiltered} variant="secondary" size="slim">
+                {isEs ? "Seleccionar todos los resultados" : "Select all results"}
+              </Button>
+              <Button onClick={handleClearAll} variant="plain" size="slim" disabled={selected.size === 0}>
+                {isEs ? "Quitar todo" : "Clear all"}
+              </Button>
+            </InlineStack>
+
             <Scrollable style={{ maxHeight: "320px" }}>
               <BlockStack gap="100">
-                {sets.map((set) => (
+                {filteredSets.length === 0 && (
+                  <Text as="p" variant="bodySm" tone="subdued">
+                    {isEs ? "Sin ediciones para este filtro." : "No editions for this filter."}
+                  </Text>
+                )}
+                {filteredSets.map((set) => (
                   <Card key={set.code} padding="200">
                     <InlineStack gap="200" align="space-between" blockAlign="center">
                       <Checkbox
-                        label={`${set.name} (${set.code.toUpperCase()})`}
+                        label={`${set.name} (${set.code.toUpperCase()})${set.cardCount ? ` · ${set.cardCount}` : ""}`}
                         checked={selected.has(set.code)}
                         onChange={(v) => {
                           setSelected((prev) => {
