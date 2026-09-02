@@ -169,10 +169,10 @@ export default function BulkImportPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [createAsActive, setCreateAsActive] = useState(false);
   const [activeJobId, setActiveJobId] = useState<string | null>(currentJob?.id ?? null);
+  const [downloading, setDownloading] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
 
-  const isExporting =
-    navigation.state === "loading" && navigation.location?.pathname === "/app/bulk-import/catalog";
+  const isExporting = downloading;
   const isSubmitting =
     navigation.state === "submitting" && navigation.formData?.get("intent") === "import";
 
@@ -220,6 +220,40 @@ export default function BulkImportPage() {
     },
     [lang, fetcher],
   );
+
+  const handleDownloadCatalog = useCallback(async () => {
+    if (Array.from(selected).length === 0 || downloading) return;
+    setDownloading(true);
+    try {
+      const setCodes = Array.from(selected).join(",");
+      const query = new URLSearchParams({ setCodes });
+      const response = await fetch(`/app/bulk-import/catalog?${query.toString()}`, {
+        method: "GET",
+        credentials: "same-origin",
+        headers: { Accept: "application/vnd.ms-excel" },
+      });
+      const contentType = response.headers.get("content-type") ?? "";
+      if (!response.ok || /text\/html/i.test(contentType)) {
+        throw new Error("Download returned HTML instead of XLSX");
+      }
+      const blob = await response.blob();
+      const disposition = response.headers.get("content-disposition") ?? "";
+      const fileNameMatch = /filename="?([^"]+)"?/i.exec(disposition);
+      const fileName = fileNameMatch?.[1] ?? `catalogo-singles-${Date.now()}.xlsx`;
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = objectUrl;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(objectUrl);
+    } catch (error) {
+      console.error("catalog download failed", error);
+    } finally {
+      setDownloading(false);
+    }
+  }, [selected, downloading]);
 
   const totalCards = selected.size;
 
@@ -288,17 +322,14 @@ export default function BulkImportPage() {
         </Card>
 
         <Card padding="400">
-          <Form method="get" action={`/app/bulk-import/catalog?lang=${lang}`}>
-            <input type="hidden" name="setCodes" value={Array.from(selected).join(",")} />
-            <Button
-              type="submit"
-              variant="primary"
-              loading={isExporting}
-              disabled={selected.size === 0 || isExporting}
-            >
-              {isEs ? "Descargar catálogo (Excel)" : "Download catalog (Excel)"}
-            </Button>
-          </Form>
+          <Button
+            onClick={handleDownloadCatalog}
+            variant="primary"
+            loading={isExporting}
+            disabled={selected.size === 0 || isExporting}
+          >
+            {isEs ? "Descargar catálogo (Excel)" : "Download catalog (Excel)"}
+          </Button>
         </Card>
 
         <Card padding="400">
