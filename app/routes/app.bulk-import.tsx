@@ -221,12 +221,16 @@ export default function BulkImportPage() {
     [lang, fetcher],
   );
 
-  const handleDownloadCatalog = useCallback(async () => {
-    if (Array.from(selected).length === 0 || downloading) return;
+  const doDownload = useCallback(async (params: { setCodes?: Array<string>; all?: boolean }) => {
+    if (downloading) return;
     setDownloading(true);
     try {
-      const setCodes = Array.from(selected).join(",");
-      const query = new URLSearchParams({ setCodes });
+      const query = new URLSearchParams();
+      if (params.all) {
+        query.set("all", "true");
+      } else {
+        query.set("setCodes", (params.setCodes ?? []).join(","));
+      }
       const response = await fetch(`/app/bulk-import/catalog?${query.toString()}`, {
         method: "GET",
         credentials: "same-origin",
@@ -253,7 +257,16 @@ export default function BulkImportPage() {
     } finally {
       setDownloading(false);
     }
-  }, [selected, downloading]);
+  }, [downloading]);
+
+  const handleDownloadCatalog = useCallback(() => {
+    if (Array.from(selected).length === 0) return;
+    void doDownload({ setCodes: Array.from(selected) });
+  }, [selected, doDownload]);
+
+  const handleDownloadAll = useCallback(() => {
+    void doDownload({ all: true });
+  }, [doDownload]);
 
   const totalCards = selected.size;
 
@@ -322,14 +335,41 @@ export default function BulkImportPage() {
         </Card>
 
         <Card padding="400">
-          <Button
-            onClick={handleDownloadCatalog}
-            variant="primary"
-            loading={isExporting}
-            disabled={selected.size === 0 || isExporting}
-          >
-            {isEs ? "Descargar catálogo (Excel)" : "Download catalog (Excel)"}
-          </Button>
+          <BlockStack gap="300">
+            <Text as="h3" variant="headingMd">
+              {isEs ? "Descargar catálogo" : "Download catalog"}
+            </Text>
+            <Text as="p" variant="bodySm" tone="subdued">
+              {isEs
+                ? "Descarga las ediciones que marcaste, o todas las disponibles. El Excel tendrá una hoja por edición."
+                : "Download the editions you marked, or all available ones. The Excel will have one sheet per edition."}
+            </Text>
+            <InlineStack gap="200" wrap>
+              <Button
+                onClick={handleDownloadCatalog}
+                variant="primary"
+                loading={isExporting}
+                disabled={selected.size === 0 || isExporting}
+              >
+                {isEs ? "Descargar seleccionadas" : "Download selected"}
+              </Button>
+              <Button
+                onClick={handleDownloadAll}
+                variant="secondary"
+                loading={isExporting}
+                disabled={isExporting}
+              >
+                {isEs
+                  ? "Descargar todas las ediciones disponibles"
+                  : "Download all available editions"}
+              </Button>
+            </InlineStack>
+            <Banner tone="warning">
+              {isEs
+                ? "Descargar todas las ediciones es pesado y lento (miles de cartas). Se limita a las 200 primeras ediciones. Recomiendo descargar por selección cuando sea posible."
+                : "Downloading all editions is heavy and slow (thousands of cards). It is limited to the first 200 editions. I recommend downloading by selection when possible."}
+            </Banner>
+          </BlockStack>
         </Card>
 
         <Card padding="400">
