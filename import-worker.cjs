@@ -105,6 +105,35 @@ async function main() {
       return res.json();
     }
 
+    async function fetchExistingVariantSkus() {
+      const skus = new Set();
+      let cursor = null;
+      const query = `query ExistingSkus($tag: String!, $cursor: String) {
+        products(first: 100, after: $cursor, query: $tag) {
+          edges {
+            node {
+              variants(first: 100) {
+                edges { node { sku } }
+              }
+            }
+          }
+          pageInfo { hasNextPage endCursor }
+        }
+      }`;
+      do {
+        const json = await graphql(query, { tag: `tag:setcode-${setCode}`, cursor });
+        const page = json?.data?.products;
+        if (!page) break;
+        for (const edge of page.edges) {
+          for (const v of edge.node.variants?.edges || []) {
+            if (v.node.sku) skus.add(String(v.node.sku).toLowerCase());
+          }
+        }
+        cursor = page.pageInfo?.hasNextPage ? page.pageInfo?.endCursor : null;
+      } while (cursor);
+      return skus;
+    }
+
     // --- Build product input ---
     function translateCardType(typeLine) {
       const main = (typeLine || '').split(/\s*[—\-]\s*/)[0].trim();
@@ -182,11 +211,26 @@ async function main() {
     }
     log(`Existing Scryfall IDs in DB: ${existingScryfallIds.size}`);
 
+    // Whitelist mode (Excel import): trust the store, not the dedup table.
+    // Fetch the set's existing variant SKUs so we only skip what is really published,
+    // and create a marked card's finish (foil/nonfoil) even if its scryfall_id is
+    // listed as "already imported" in the dedup table.
+    let existingVariantSkus = new Set();
+    if (allowedCardIds) {
+      try {
+        existingVariantSkus = await fetchExistingVariantSkus();
+        log(`Whitelist mode: existing SKUs in store for ${setCode}: ${existingVariantSkus.size}`);
+      } catch (e) {
+        log(`Could not load existing SKUs: ${e.message || e}`);
+      }
+    }
+
     // --- Import each page ---
     let pageUrl = null;
     let totalCards = 0;
     let created = 0;
     let failed = 0;
+    let skipped = 0;
     let scryfallEmpty = false;
 
     const descriptionHtml = genericDescription || '';
@@ -197,8 +241,9 @@ async function main() {
       totalCards = page.total;
 
       for (const card of page.cards) {
-        // Skip if this card already exists in the store
-        if (existingScryfallIds.has(card.id)) continue;
+        // Whitelist mode: skip only if the exact variant SKU is already in the store.
+        // Otherwise (normal set import) skip by dedup scryfall_id.
+        if (!allowedCardIds && existingScryfallIds.has(card.id)) continue;
         // Skip if a whitelist was provided and this card is not in it
         if (allowedCardIds && !allowedCardIds.has(card.id)) continue;
 
@@ -209,6 +254,12 @@ async function main() {
         for (const finish of finishes) {
           const cardLangSuffix = card.lang === 'en' ? '' : card.lang;
           const sku = `${card.setCode}${card.collectorNumber}${cardLangSuffix}${finish.foil ? 'foil' : ''}`;
+          // Whitelist mode: skip this exact variant if it is already published.
+          if (allowedCardIds && existingVariantSkus.has(sku.toLowerCase())) {
+            skipped++;
+            log(`SKIP (already in store): ${sku}`);
+            continue;
+          }
           const title = buildTitle(card, finish.foil);
           const finishTag = finish.foil ? 'foil' : 'nonfoil';
 
@@ -317,7 +368,7 @@ async function main() {
           // Update progress
           await p.setImportJob.update({
             where: { id: jobId },
-            data: { total: totalCards, processed: created + failed, created, failed },
+            data: { total: totalCards, processed: created + failed, created, failed, skipped },
           }).catch(() => {});
 
           // Check for cancellation every 10 products
@@ -350,12 +401,13 @@ async function main() {
         processed: created + failed,
         created,
         failed,
+        skipped,
         message,
         finishedAt: new Date(),
       },
     });
 
-    log(`DONE: created=${created} failed=${failed}`);
+    log(`DONE: created=${created} failed=${failed} skipped=${skipped}`);
     await p.$disconnect();
   } catch (error) {
     await failJob(error.message);
