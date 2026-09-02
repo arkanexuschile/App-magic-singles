@@ -19,6 +19,14 @@ async function main() {
         return map;
       }, new Map())
     : null;
+  // Stock per variant (scryfall_id + foil). Key format: "<id>|<0|1>".
+  const stockByVariant = Array.isArray(cardSelections) && cardSelections.length > 0
+    ? cardSelections.reduce((map, sel) => {
+        const key = `${String(sel.scryfallId)}|${sel.foil ? 1 : 0}`;
+        map.set(key, Number(sel.stock) || 0);
+        return map;
+      }, new Map())
+    : null;
   const langNames = { en: 'Inglés', es: 'Español', ja: 'Japonés', pt: 'Portugués' };
   const langTitleNames = { en: 'ingles', es: 'español', ja: 'japonés', pt: 'portugués' };
   function idiomaName(lang) {
@@ -141,6 +149,42 @@ async function main() {
         cursor = page.pageInfo?.hasNextPage ? page.pageInfo?.endCursor : null;
       } while (cursor);
       return skus;
+    }
+
+    // Resolve the store's first physical location id (needed to set inventory levels).
+    let cachedLocationId = null;
+    async function getPrimaryLocationId() {
+      if (cachedLocationId) return cachedLocationId;
+      const json = await graphql(
+        `query GetLocations { locations(first: 1) { edges { node { id } } } }`,
+      );
+      const locId = json?.data?.locations?.edges?.[0]?.node?.id;
+      if (locId) cachedLocationId = locId;
+      return locId || null;
+    }
+
+    // Set the available quantity for a variant's inventory item at the primary location.
+    async function applyVariantStock(inventoryItemId, qty) {
+      const locationId = await getPrimaryLocationId();
+      if (!locationId) {
+        log(`WARN: no location found, cannot set stock`);
+        return false;
+      }
+      const invNumericId = inventoryItemId.split('/').pop();
+      const locNumericId = locationId.split('/').pop();
+      const resp = await fetch(`https://${shop}/admin/api/${SHOPIFY_API_VERSION}/inventory_levels.json`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'X-Shopify-Access-Token': accessToken },
+        body: JSON.stringify({
+          inventory_level: { inventory_item_id: invNumericId, location_id: locNumericId, available: qty },
+        }),
+      });
+      if (!resp.ok) {
+        const text = await resp.text().catch(() => '');
+        log(`WARN ${invNumericId}: set stock failed: ${resp.status} ${text.slice(0, 200)}`);
+        return false;
+      }
+      return true;
     }
 
     // --- Build product input ---
@@ -270,6 +314,8 @@ async function main() {
         for (const finish of keptFinishes) {
           const cardLangSuffix = card.lang === 'en' ? '' : card.lang;
           const sku = `${card.setCode}${card.collectorNumber}${cardLangSuffix}${finish.foil ? 'foil' : ''}`;
+          // Stock provided via Excel for this exact variant.
+          const variantStock = stockByVariant ? (stockByVariant.get(`${card.id}|${finish.foil ? 1 : 0}`) || 0) : 0;
           // Whitelist mode: skip this exact variant if it is already published.
           if (whitelistMode && existingVariantSkus.has(sku.toLowerCase())) {
             skipped++;
@@ -361,6 +407,10 @@ async function main() {
             const trackJson = await trackResp.json();
             if (!trackResp.ok) {
               log(`WARN ${sku}: inventory tracking failed: ${JSON.stringify(trackJson)}`);
+            }
+            // Apply the stock provided via Excel (only when > 0).
+            if (variantStock > 0) {
+              await applyVariantStock(variant.inventoryItem.id, variantStock);
             }
           }
 

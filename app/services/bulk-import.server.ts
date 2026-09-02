@@ -5,6 +5,7 @@ import type { ScryfallCardInfo, ScryfallCardJson } from "./set-importer.server";
 export type CardSelection = {
   scryfallId: string;
   foil: boolean;
+  stock: number;
 };
 
 export type ExportGroup = {
@@ -62,6 +63,7 @@ export function buildCatalogBuffer(cards: ScryfallCardInfo[]): Buffer {
     "edición",
     "acabado",
     "imagen_url",
+    "cantidad",
     "INCLUIR",
   ];
   const rows: Array<Array<string>> = [header];
@@ -82,6 +84,7 @@ export function buildCatalogBuffer(cards: ScryfallCardInfo[]): Buffer {
         isFoil ? "foil" : "no-foil",
         c.imageUrl || "",
         "",
+        "",
       ]);
     }
   }
@@ -97,6 +100,7 @@ export function buildCatalogBuffer(cards: ScryfallCardInfo[]): Buffer {
     { wch: 40 },
     { wch: 10 },
     { wch: 60 },
+    { wch: 10 },
     { wch: 10 },
   ];
   const wb = XLSX.utils.book_new();
@@ -124,6 +128,7 @@ export function parseImportBuffer(buffer: ArrayBuffer): ExportGroup[] {
   const idCol = header.indexOf("scryfall_id");
   const finishCol = header.indexOf("acabado");
   const includeCol = header.indexOf("incluir");
+  const stockCol = header.indexOf("cantidad");
 
   if (setCol < 0 || idCol < 0) {
     throw new Error("El Excel debe tener las columnas set_code y scryfall_id.");
@@ -140,6 +145,11 @@ export function parseImportBuffer(buffer: ArrayBuffer): ExportGroup[] {
     const v = String(value ?? "").trim().toLowerCase();
     return v === "foil" || v === "si" || v === "sí" || v === "true" || v === "1";
   };
+  const parseStock = (value: unknown): number => {
+    if (stockCol < 0) return 0;
+    const n = Number(String(value ?? "").trim());
+    return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
+  };
 
   for (const row of rows.slice(1)) {
     if (!row || row.length === 0) continue;
@@ -149,7 +159,7 @@ export function parseImportBuffer(buffer: ArrayBuffer): ExportGroup[] {
     if (!isMarked(row[includeCol])) continue;
 
     const group = grouped.get(setCode) ?? { setCode, cardSelections: [] };
-    group.cardSelections.push({ scryfallId: cardId, foil: parseFoil(row[finishCol]) });
+    group.cardSelections.push({ scryfallId: cardId, foil: parseFoil(row[finishCol]), stock: parseStock(row[stockCol]) });
     grouped.set(setCode, group);
   }
 

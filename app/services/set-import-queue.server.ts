@@ -81,7 +81,7 @@ export async function enqueueSetImport(params: {
   createAsActive: boolean;
   lang?: string;
   cardIds?: string[];
-  cardSelections?: Array<{ scryfallId: string; foil: boolean }>;
+  cardSelections?: Array<{ scryfallId: string; foil: boolean; stock: number }>;
 }): Promise<{ job: SetImportJobView; alreadyRunning: boolean }> {
   const setCode = params.setCode.toLowerCase();
 
@@ -154,7 +154,7 @@ async function runJobInBackground(params: {
   createAsActive: boolean;
   lang?: string;
   cardIds?: string[];
-  cardSelections?: Array<{ scryfallId: string; foil: boolean }>;
+  cardSelections?: Array<{ scryfallId: string; foil: boolean; stock: number }>;
 }): Promise<void> {
   const { jobId, shop, accessToken, setCode, createAsActive, lang, cardIds, cardSelections } = params;
 
