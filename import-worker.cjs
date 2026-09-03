@@ -71,8 +71,15 @@ async function main() {
     }
 
     async function getSetCardsPage(code, pageUrl) {
+      // Use a real space (encoded %20) as the AND operator. Scryfall treats `+`
+      // differently and returns the English print even when a language is given.
+      // When importing all languages (Excel whitelist), fetch every language.
       let query = `set%3A${code}`;
-      if (langFilter !== 'all') query += `%2Blang%3A${langFilter}`;
+      if (langFilter === 'all') {
+        query += `%20lang%3A%2A`;
+      } else if (langFilter !== 'en') {
+        query += `%20lang%3A${langFilter}`;
+      }
       const url = pageUrl || `/cards/search?q=${query}&order=set&unique=prints`;
       const json = await scryfallFetch(url);
       const cards = json.data

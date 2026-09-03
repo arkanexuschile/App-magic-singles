@@ -54,7 +54,9 @@ async function scryfallFetch(path: string): Promise<Response> {
 /** Fetch every printable card for a set across all languages. */
 export async function fetchAllCards(setCode: string): Promise<ScryfallCardInfo[]> {
   const cards: ScryfallCardInfo[] = [];
-  let url = `/cards/search?q=set:${encodeURIComponent(setCode)}&order=set&unique=prints`;
+  // `lang:*` + space (AND operator) returns every language printing, not just English.
+  // Scryfall treats `+` differently: `set:code+lang:es` returns English, so we must use a real space.
+  let url = `/cards/search?q=set%3A${encodeURIComponent(setCode)}%20lang%3A%2A&order=set&unique=prints`;
   while (url) {
     const response = await scryfallFetch(url);
     if (!response.ok) {
