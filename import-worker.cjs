@@ -91,6 +91,7 @@ async function main() {
           set_name: c.set_name,
           collectorNumber: c.collector_number,
           rarity: c.rarity,
+          oracleId: c.oracle_id,
           usdPrice: c.prices.usd ? parseFloat(c.prices.usd) : null,
           usdFoilPrice: c.prices.usd_foil ? parseFloat(c.prices.usd_foil) : null,
           imageUrl: c.image_uris?.large || c.image_uris?.normal || c.image_uris?.small,
@@ -295,6 +296,58 @@ async function main() {
       log(`CK cache unavailable: ${e.message}`);
     }
 
+    // --- English fallbacks for non-English cards ---
+    // Non-English printings share the same oracle_id but have a different scryfall_id,
+    // so the CK cache (keyed by scryfall_id) has no entry for them and Scryfall may
+    // report no usd price. We load the English printing once and reuse its prices/
+    // CK price for any non-English card with the same oracle_id.
+    let enByOracle = new Map(); // oracle_id -> { usd, usdFoil, scryfallId }
+    async function loadEnglishFallbacks() {
+      let url = `/cards/search?q=set%3A${encodeURIComponent(setCode)}&order=set&unique=prints`;
+      while (url) {
+        const json = await scryfallFetch(url);
+        for (const c of json.data || []) {
+          if (c.lang !== 'en') continue;
+          if (!c.oracle_id) continue;
+          enByOracle.set(c.oracle_id, {
+            usd: c.prices?.usd ? parseFloat(c.prices.usd) : null,
+            usdFoil: c.prices?.usd_foil ? parseFloat(c.prices.usd_foil) : null,
+            scryfallId: c.id,
+          });
+        }
+        url = json.has_more && json.next_page ? json.next_page.replace(/^https?:\/\/api\.scryfall\.com/, '') : null;
+      }
+      log(`English fallbacks loaded: ${enByOracle.size} oracle_ids`);
+    }
+    try {
+      await loadEnglishFallbacks();
+    } catch (e) {
+      log(`English fallbacks unavailable: ${e.message || e}`);
+    }
+
+    // Resolve a price for a (possibly non-English) card. Prefers CK by scryfall_id,
+    // then Scryfall usd, then the English sibling's CK price / usd by oracle_id.
+    function resolvePrice(card, foil) {
+      const ownCk = ckPrices.get(card.id);
+      if (ownCk) {
+        const v = parseFloat(foil ? (ownCk.foil || ownCk.nonfoil) : (ownCk.nonfoil || ownCk.foil));
+        if (!isNaN(v) && v > 0) return v;
+      }
+      const ownUsd = foil ? card.usdFoilPrice : card.usdPrice;
+      if (ownUsd && ownUsd > 0) return ownUsd;
+      const en = enByOracle.get(card.oracleId);
+      if (en) {
+        const enCk = ckPrices.get(en.scryfallId);
+        if (enCk) {
+          const v = parseFloat(foil ? (enCk.foil || enCk.nonfoil) : (enCk.nonfoil || enCk.foil));
+          if (!isNaN(v) && v > 0) return v;
+        }
+        const enUsd = foil ? en.usdFoil : en.usd;
+        if (enUsd && enUsd > 0) return enUsd;
+      }
+      return 0;
+    }
+
     // --- Load existing Scryfall IDs from local DB to skip duplicates ---
     const existingScryfallIds = new Set();
     try {
@@ -353,8 +406,8 @@ async function main() {
         if (allowedFinishes && !allowedFinishes.has(card.id)) continue;
 
         const finishes = [];
-        if (card.hasNonfoil) { let p = card.usdPrice || 0; const ck = ckPrices.get(card.id); if (ck) { const v = parseFloat(ck.nonfoil || ck.foil || '0'); if (!isNaN(v) && v > 0) p = v; } finishes.push({ foil: false, price: p }); }
-        if (card.hasFoil) { let p = card.usdFoilPrice || 0; const ck = ckPrices.get(card.id); if (ck) { const v = parseFloat(ck.foil || ck.nonfoil || '0'); if (!isNaN(v) && v > 0) p = v; } finishes.push({ foil: true, price: p }); }
+        if (card.hasNonfoil) finishes.push({ foil: false, price: resolvePrice(card, false) });
+        if (card.hasFoil) finishes.push({ foil: true, price: resolvePrice(card, true) });
 
         // Finish-level whitelist: only keep the finishes the user marked for this card.
         const allowedFoilSet = allowedFinishes ? allowedFinishes.get(card.id) : null;
