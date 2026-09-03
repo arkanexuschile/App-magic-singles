@@ -513,6 +513,13 @@ export default function BulkImportPage() {
               <Text as="p" variant="bodySm" fontWeight="semibold">
                 {isEs ? "Idioma" : "Language"}
               </Text>
+              <Checkbox
+                label={isEs ? "Seleccionar todos" : "Select all"}
+                checked={langFilter.size === langOptions.length}
+                onChange={(v) => {
+                  setLangFilter(v ? new Set(langOptions.map((o) => o.code)) : new Set());
+                }}
+              />
               <InlineStack gap="200" wrap>
                 {langOptions.map((opt) => (
                   <Checkbox
