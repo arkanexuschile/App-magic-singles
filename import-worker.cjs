@@ -325,16 +325,15 @@ async function main() {
       log(`English fallbacks unavailable: ${e.message || e}`);
     }
 
-    // Resolve a price for a (possibly non-English) card. Prefers CK by scryfall_id,
-    // then Scryfall usd, then the English sibling's CK price / usd by oracle_id.
+    // Resolve a price for a (possibly non-English) card.
+    // Priority: 1) CK by own scryfall_id, 2) English sibling (by oracle_id) CK price
+    // or its Scryfall usd, 3) own Scryfall usd.
     function resolvePrice(card, foil) {
       const ownCk = ckPrices.get(card.id);
       if (ownCk) {
         const v = parseFloat(foil ? (ownCk.foil || ownCk.nonfoil) : (ownCk.nonfoil || ownCk.foil));
         if (!isNaN(v) && v > 0) return v;
       }
-      const ownUsd = foil ? card.usdFoilPrice : card.usdPrice;
-      if (ownUsd && ownUsd > 0) return ownUsd;
       const en = enByOracle.get(card.oracleId);
       if (en) {
         const enCk = ckPrices.get(en.scryfallId);
@@ -345,6 +344,8 @@ async function main() {
         const enUsd = foil ? en.usdFoil : en.usd;
         if (enUsd && enUsd > 0) return enUsd;
       }
+      const ownUsd = foil ? card.usdFoilPrice : card.usdPrice;
+      if (ownUsd && ownUsd > 0) return ownUsd;
       return 0;
     }
 
