@@ -186,6 +186,7 @@ async function main() {
       }`;
       const json = await graphql(mutation, {
         input: {
+          ignoreCompareQuantity: true,
           name: 'available',
           reason: 'correction',
           quantities: [{
