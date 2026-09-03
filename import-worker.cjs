@@ -178,18 +178,27 @@ async function main() {
         log(`WARN: no location found, cannot set stock`);
         return false;
       }
-      const invNumericId = inventoryItemId.split('/').pop();
-      const locNumericId = locationId.split('/').pop();
-      const resp = await fetch(`https://${shop}/admin/api/${SHOPIFY_API_VERSION}/inventory_levels.json`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'X-Shopify-Access-Token': accessToken },
-        body: JSON.stringify({
-          inventory_level: { inventory_item_id: invNumericId, location_id: locNumericId, available: qty },
-        }),
+      const mutation = `mutation SetInventory($input: [InventorySetQuantitiesInput!]!) {
+        inventorySetQuantities(input: $input) {
+          userErrors { field message }
+          inventoryAdjustmentGroup { changes { name } }
+        }
+      }`;
+      const json = await graphql(mutation, {
+        input: [{
+          name: 'available',
+          quantity: qty,
+          reason: 'correction',
+          inventoryLevel: { locationId, itemId: inventoryItemId },
+        }],
       });
-      if (!resp.ok) {
-        const text = await resp.text().catch(() => '');
-        log(`WARN ${invNumericId}: set stock failed: ${resp.status} ${text.slice(0, 200)}`);
+      const userErrors = json?.data?.inventorySetQuantities?.userErrors || [];
+      if (json.errors || userErrors.length > 0) {
+        const msgs = [
+          ...(json.errors || []).map((e) => e.message),
+          ...userErrors.map((e) => `${e.field}: ${e.message}`),
+        ];
+        log(`WARN: set stock failed for ${inventoryItemId}: ${msgs.join('; ')}`);
         return false;
       }
       return true;
