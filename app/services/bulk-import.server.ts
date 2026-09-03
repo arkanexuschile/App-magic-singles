@@ -88,6 +88,32 @@ const CATALOG_HEADER = [
   "INCLUIR",
 ];
 
+const LANG_NAME: Record<string, string> = {
+  en: "Inglés",
+  es: "Español",
+  fr: "Francés",
+  de: "Alemán",
+  it: "Italiano",
+  pt: "Portugués",
+  ja: "Japonés",
+  ko: "Coreano",
+  ru: "Ruso",
+  zh: "Chino",
+  zhs: "Chino (simplificado)",
+  zht: "Chino (tradicional)",
+  he: "Hebreo",
+  la: "Latín",
+  sa: "Sánscrito",
+  ar: "Árabe",
+  grc: "Griego",
+  ph: "Filo (Phyrexian)",
+  dw: "Enano (Dwarvish)",
+};
+
+function langName(code: string): string {
+  return LANG_NAME[code] || code;
+}
+
 const CATALOG_COLS = [
   { wch: 10 },
   { wch: 36 },
@@ -138,7 +164,7 @@ export function buildCatalogBuffer(cards: ScryfallCardInfo[]): Buffer {
           c.name,
           c.collectorNumber,
           c.rarity,
-          c.lang,
+          langName(c.lang),
           c.set_name,
           finish === "foil" ? "foil" : "no-foil",
           c.imageUrl || "",
