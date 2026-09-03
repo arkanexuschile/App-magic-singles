@@ -39,6 +39,7 @@ export type SetImportJobView = {
   skipped: number;
   errorCount: number;
   errors: Array<{ card: string; error: string }>;
+  existingItems: Array<{ scryfallId: string; name: string; sku: string; foil: boolean; stock: number }>;
   message: string | null;
   startedAt: string | null;
   finishedAt: string | null;
@@ -54,6 +55,14 @@ function serializeJob(row: SetImportJob): SetImportJobView {
       errors = [];
     }
   }
+  let existingItems: Array<{ scryfallId: string; name: string; sku: string; foil: boolean; stock: number }> = [];
+  if (row.existingItems) {
+    try {
+      existingItems = JSON.parse(row.existingItems) as Array<{ scryfallId: string; name: string; sku: string; foil: boolean; stock: number }>;
+    } catch {
+      existingItems = [];
+    }
+  }
   return {
     id: row.id,
     setCode: row.setCode,
@@ -66,6 +75,7 @@ function serializeJob(row: SetImportJob): SetImportJobView {
     skipped: row.skipped,
     errorCount: row.errorCount,
     errors,
+    existingItems,
     message: row.message,
     startedAt: row.startedAt?.toISOString() ?? null,
     finishedAt: row.finishedAt?.toISOString() ?? null,

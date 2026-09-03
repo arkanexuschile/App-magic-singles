@@ -187,6 +187,40 @@ async function main() {
       return true;
     }
 
+    // Resolve an existing variant's inventory item id by its SKU.
+    async function findInventoryItemIdBySku(sku) {
+      const query = `query VariantBySku($sku: String!) {
+        productVariants(first: 1, query: $sku) {
+          edges { node { id inventoryItem { id } } }
+        }
+      }`;
+      const json = await graphql(query, { sku });
+      const v = json?.data?.productVariants?.edges?.[0]?.node;
+      if (!v) return null;
+      return v.inventoryItem?.id || null;
+    }
+
+    // Add an item (card already in the store) to the report, and apply stock if requested.
+    const existingItems = [];
+    async function recordExisting(scryfallId, name, sku, foil, stock) {
+      existingItems.push({ scryfallId, name, sku, foil, stock });
+      skipped++;
+      log(`SKIP (already in store): ${sku}`);
+      if (stock > 0) {
+        try {
+          const invItemId = await findInventoryItemIdBySku(sku);
+          if (invItemId) {
+            await applyVariantStock(invItemId, stock);
+            log(`Updated stock for existing ${sku} -> ${stock}`);
+          } else {
+            log(`WARN: could not find inventory item for existing ${sku}`);
+          }
+        } catch (e) {
+          log(`WARN: failed to update stock for ${sku}: ${e.message || e}`);
+        }
+      }
+    }
+
     // --- Build product input ---
     function translateCardType(typeLine) {
       const main = (typeLine || '').split(/\s*[—\-]\s*/)[0].trim();
@@ -316,10 +350,9 @@ async function main() {
           const sku = `${card.setCode}${card.collectorNumber}${cardLangSuffix}${finish.foil ? 'foil' : ''}`;
           // Stock provided via Excel for this exact variant.
           const variantStock = stockByVariant ? (stockByVariant.get(`${card.id}|${finish.foil ? 1 : 0}`) || 0) : 0;
-          // Whitelist mode: skip this exact variant if it is already published.
+          // Whitelist mode: this exact variant is already published.
           if (whitelistMode && existingVariantSkus.has(sku.toLowerCase())) {
-            skipped++;
-            log(`SKIP (already in store): ${sku}`);
+            await recordExisting(card.id, card.name, sku, finish.foil, variantStock);
             continue;
           }
           const title = buildTitle(card, finish.foil);
@@ -469,11 +502,12 @@ async function main() {
         failed,
         skipped,
         message,
+        existingItems: existingItems.length > 0 ? JSON.stringify(existingItems) : null,
         finishedAt: new Date(),
       },
     });
 
-    log(`DONE: created=${created} failed=${failed} skipped=${skipped}`);
+    log(`DONE: created=${created} failed=${failed} skipped=${skipped} existing=${existingItems.length}`);
     await p.$disconnect();
   } catch (error) {
     await failJob(error.message);

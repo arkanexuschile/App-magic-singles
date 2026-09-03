@@ -278,6 +278,39 @@ export default function BulkImportPage() {
     void doDownload({ all: true });
   }, [doDownload]);
 
+  const [downloadingCsv, setDownloadingCsv] = useState(false);
+  const handleDownloadExistingCsv = useCallback(async (jobId: string) => {
+    if (downloadingCsv) return;
+    setDownloadingCsv(true);
+    try {
+      const response = await fetch(`/app/bulk-import/existing.csv?job=${encodeURIComponent(jobId)}`, {
+        method: "GET",
+        credentials: "same-origin",
+        headers: { Accept: "text/csv" },
+      });
+      const contentType = response.headers.get("content-type") ?? "";
+      if (!response.ok || /text\/html/i.test(contentType)) {
+        throw new Error("Download returned HTML instead of CSV");
+      }
+      const blob = await response.blob();
+      const disposition = response.headers.get("content-disposition") ?? "";
+      const fileNameMatch = /filename="?([^"]+)"?/i.exec(disposition);
+      const fileName = fileNameMatch?.[1] ?? `ya-existentes-${jobId}.csv`;
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = objectUrl;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(objectUrl);
+    } catch (error) {
+      console.error("existing csv download failed", error);
+    } finally {
+      setDownloadingCsv(false);
+    }
+  }, [downloadingCsv]);
+
   const totalCards = selected.size;
 
   const allSetTypes = [
@@ -564,11 +597,38 @@ export default function BulkImportPage() {
 
         {activeJob && activeJob.status === "completed" && (
           <Card padding="400">
-            <Banner tone="success">
-              {isEs
-                ? `Importación de ${activeJob.setCode.toUpperCase()} completada: ${activeJob.created} creadas, ${activeJob.skipped} omitidas, ${activeJob.failed} fallos`
-                : `Import for ${activeJob.setCode.toUpperCase()} complete: ${activeJob.created} created, ${activeJob.skipped} skipped, ${activeJob.failed} failed`}
-            </Banner>
+            <BlockStack gap="300">
+              <Banner tone="success">
+                {isEs
+                  ? `Importación de ${activeJob.setCode.toUpperCase()} completada: ${activeJob.created} creadas, ${activeJob.skipped} ya existentes, ${activeJob.failed} fallos`
+                  : `Import for ${activeJob.setCode.toUpperCase()} complete: ${activeJob.created} created, ${activeJob.skipped} already in store, ${activeJob.failed} failed`}
+              </Banner>
+              {activeJob.existingItems.length > 0 && (
+                <BlockStack gap="200">
+                  <InlineStack gap="200" blockAlign="center">
+                    <Text as="h4" variant="headingSm">
+                      {isEs
+                        ? `Cartas ya existentes en la tienda (${activeJob.existingItems.length})`
+                        : `Cards already in store (${activeJob.existingItems.length})`}
+                    </Text>
+                    <Button
+                      onClick={() => handleDownloadExistingCsv(activeJob.id)}
+                      variant="secondary"
+                      loading={downloadingCsv}
+                      disabled={downloadingCsv}
+                      size="slim"
+                    >
+                      {isEs ? "Descargar CSV de ya existentes" : "Download existing CSV"}
+                    </Button>
+                  </InlineStack>
+                  <Text as="p" variant="bodySm" tone="subdued">
+                    {isEs
+                      ? "Estas cartas ya estaban publicadas, así que no se duplicaron. Si indicaste stock en la fila, se lo aplicamos a la variante existente. El CSV trae el SKU y el stock solicitado por si prefieres revisarlo."
+                      : "These cards were already published so they were not duplicated. If you provided stock on the row, we applied it to the existing variant. The CSV includes the SKU and the requested stock in case you want to review it."}
+                  </Text>
+                </BlockStack>
+              )}
+            </BlockStack>
           </Card>
         )}
 

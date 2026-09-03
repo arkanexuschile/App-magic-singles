@@ -224,6 +224,7 @@ model SetImportJob {
   skipped        Int       @default(0)
   errorCount     Int       @default(0)
   errors         String? // JSON array of {card, error} (primero N errores)
+  existingItems  String? // JSON array of {scryfallId, name, sku, foil, stock} (cartas ya existentes y no creadas)
   message        String?
   startedAt      DateTime?
   finishedAt     DateTime?
