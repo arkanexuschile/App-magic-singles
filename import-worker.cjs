@@ -178,19 +178,19 @@ async function main() {
         log(`WARN: no location found, cannot set stock`);
         return false;
       }
-      const mutation = `mutation SetInventory($input: [InventorySetQuantitiesInput!]!) {
+      const mutation = `mutation SetInventory($input: InventorySetQuantitiesInput!) {
         inventorySetQuantities(input: $input) {
           userErrors { field message }
           inventoryAdjustmentGroup { changes { name } }
         }
       }`;
       const json = await graphql(mutation, {
-        input: [{
+        input: {
           name: 'available',
           quantity: qty,
           reason: 'correction',
           inventoryLevel: { locationId, itemId: inventoryItemId },
-        }],
+        },
       });
       const userErrors = json?.data?.inventorySetQuantities?.userErrors || [];
       if (json.errors || userErrors.length > 0) {
