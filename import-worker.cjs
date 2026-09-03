@@ -187,9 +187,12 @@ async function main() {
       const json = await graphql(mutation, {
         input: {
           name: 'available',
-          quantity: qty,
           reason: 'correction',
-          inventoryLevel: { locationId, itemId: inventoryItemId },
+          quantities: [{
+            inventoryItemId,
+            locationId,
+            quantity: qty,
+          }],
         },
       });
       const userErrors = json?.data?.inventorySetQuantities?.userErrors || [];
