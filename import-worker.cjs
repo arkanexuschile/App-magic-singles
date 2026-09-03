@@ -330,10 +330,18 @@ async function main() {
 
     const descriptionHtml = genericDescription || '';
 
+    // In whitelist mode (Excel import) the total is the number of selected variants,
+    // not Scryfall's inflated total_cards (which counts every language/finish print).
+    if (whitelistMode) {
+      totalCards = (cardSelections && cardSelections.length > 0)
+        ? cardSelections.length
+        : (cardIds && cardIds.length > 0 ? cardIds.length : 0);
+    }
+
     do {
       const page = await getSetCardsPage(setCode, pageUrl);
       pageUrl = page.nextPage;
-      totalCards = page.total;
+      if (!whitelistMode) totalCards = page.total;
 
       for (const card of page.cards) {
         // Whitelist mode: skip only if the exact variant SKU is already in the store.
@@ -474,7 +482,7 @@ async function main() {
           // Update progress
           await p.setImportJob.update({
             where: { id: jobId },
-            data: { total: totalCards, processed: created + failed, created, failed, skipped },
+            data: { total: totalCards, processed: created + failed + skipped, created, failed, skipped },
           }).catch(() => {});
 
           // Check for cancellation every 10 products
@@ -503,8 +511,8 @@ async function main() {
       where: { id: jobId },
       data: {
         status: 'completed',
-        total: created + failed,
-        processed: created + failed,
+        total: created + failed + skipped,
+        processed: created + failed + skipped,
         created,
         failed,
         skipped,
