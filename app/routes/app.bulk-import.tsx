@@ -43,6 +43,20 @@ import {
 } from "../services/set-import-queue.server";
 import type { SetImportJobView } from "../services/set-import-queue.server";
 
+const langOptions: Array<{ code: string; label: string }> = [
+  { code: "en", label: "Inglés" },
+  { code: "es", label: "Español" },
+  { code: "fr", label: "Francés" },
+  { code: "de", label: "Alemán" },
+  { code: "it", label: "Italiano" },
+  { code: "pt", label: "Portugués" },
+  { code: "ja", label: "Japonés" },
+  { code: "ko", label: "Coreano" },
+  { code: "ru", label: "Ruso" },
+  { code: "zhs", label: "Chino simplificado" },
+  { code: "zht", label: "Chino tradicional" },
+];
+
 function SearchSvg() {
   return (
     <svg viewBox="0 0 20 20" fill="currentColor" width="20" height="20">
@@ -177,6 +191,7 @@ export default function BulkImportPage() {
   const [search, setSearch] = useState(searchQuery);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [typeFilter, setTypeFilter] = useState<Set<string>>(new Set());
+  const [langFilter, setLangFilter] = useState<Set<string>>(new Set([ "en", "es" ]));
   const [createAsActive, setCreateAsActive] = useState(false);
   const [activeJobId, setActiveJobId] = useState<string | null>(currentJob?.id ?? null);
   const [downloading, setDownloading] = useState(false);
@@ -241,6 +256,9 @@ export default function BulkImportPage() {
       } else {
         query.set("setCodes", (params.setCodes ?? []).join(","));
       }
+      if (langFilter.size > 0) {
+        query.set("langs", Array.from(langFilter).join(","));
+      }
       const response = await fetch(`/app/bulk-import/catalog?${query.toString()}`, {
         method: "GET",
         credentials: "same-origin",
@@ -267,7 +285,7 @@ export default function BulkImportPage() {
     } finally {
       setDownloading(false);
     }
-  }, [downloading]);
+  }, [downloading, langFilter]);
 
   const handleDownloadCatalog = useCallback(() => {
     if (Array.from(selected).length === 0) return;
@@ -490,6 +508,37 @@ export default function BulkImportPage() {
                 ? "Descarga las ediciones que marcaste, o todas las disponibles. El Excel tendrá una hoja por edición."
                 : "Download the editions you marked, or all available ones. The Excel will have one sheet per edition."}
             </Text>
+
+            <BlockStack gap="100">
+              <Text as="p" variant="bodySm" fontWeight="semibold">
+                {isEs ? "Idioma" : "Language"}
+              </Text>
+              <InlineStack gap="200" wrap>
+                {langOptions.map((opt) => (
+                  <Checkbox
+                    key={opt.code}
+                    label={opt.label}
+                    checked={langFilter.has(opt.code)}
+                    onChange={(v) => {
+                      setLangFilter((prev) => {
+                        const next = new Set(prev);
+                        if (v) next.add(opt.code);
+                        else next.delete(opt.code);
+                        return next;
+                      });
+                    }}
+                  />
+                ))}
+              </InlineStack>
+              {langFilter.size === 0 && (
+                <Text as="p" variant="bodySm" tone="subdued">
+                  {isEs
+                    ? "Sin idiomas seleccionados se exportarán todos los disponibles."
+                    : "With no languages selected, all available languages are exported."}
+                </Text>
+              )}
+            </BlockStack>
+
             <InlineStack gap="200" wrap>
               <Button
                 onClick={handleDownloadCatalog}

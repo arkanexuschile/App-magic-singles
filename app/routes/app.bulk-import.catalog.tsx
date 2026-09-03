@@ -7,6 +7,11 @@ function decodeSetCodes(encoded: string): string[] {
   return encoded.split(",").map((s) => s.trim()).filter(Boolean);
 }
 
+function decodeLangs(encoded: string): string[] {
+  if (!encoded) return [];
+  return encoded.split(",").map((s) => s.trim()).filter(Boolean);
+}
+
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   await authenticate.admin(request);
   const url = new URL(request.url);
@@ -20,6 +25,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const raw = url.searchParams.get("setCodes") || "";
     setCodes = decodeSetCodes(raw);
   }
+  const langs = decodeLangs(url.searchParams.get("langs") || "");
 
   if (setCodes.length === 0) {
     return new Response("No set codes selected", { status: 400 });
@@ -35,7 +41,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const skippedSets: string[] = [];
   for (const code of setCodes) {
     try {
-      const setCards = await fetchAllCards(code);
+      const setCards = await fetchAllCards(code, langs);
       cards.push(...setCards);
     } catch (e) {
       // Tolerate a single set failing (e.g. Scryfall throttling) instead of
