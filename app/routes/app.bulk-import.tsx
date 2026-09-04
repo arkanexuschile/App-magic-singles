@@ -301,7 +301,7 @@ export default function BulkImportPage() {
     if (downloadingCsv) return;
     setDownloadingCsv(true);
     try {
-      const response = await fetch(`/app/bulk-import/existing.csv?job=${encodeURIComponent(jobId)}`, {
+      const response = await fetch(`/app/bulk-import/existing-csv?job=${encodeURIComponent(jobId)}`, {
         method: "GET",
         credentials: "same-origin",
         headers: { Accept: "text/csv" },
