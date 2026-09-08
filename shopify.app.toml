@@ -2,7 +2,7 @@
 
 client_id = "301de544ca2a71c07a6ca256cd01e474"
 name = "Magic Pricer Singles"
-application_url = "https://localhost"
+application_url = "https://app-singles.arkanexus.cl"
 embedded = true
 handle = "magic-pricer"
 
@@ -39,4 +39,4 @@ optional_scopes = [ ]
 use_legacy_install_flow = false
 
 [auth]
-redirect_urls = [ "https://localhost/auth/callback" ]
+redirect_urls = [ "https://app-singles.arkanexus.cl/auth/callback" ]

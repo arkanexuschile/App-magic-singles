@@ -106,7 +106,10 @@ model ExchangeRateCache {
 }
 
 model ImportedScryfallId {
-  scryfallId String @id
+  shop       String
+  scryfallId String
+
+  @@id([shop, scryfallId])
 }
 
 model CardKingdomPriceCache {

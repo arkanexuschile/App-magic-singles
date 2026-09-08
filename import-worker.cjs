@@ -362,15 +362,15 @@ async function main() {
       return 0;
     }
 
-    // --- Load existing Scryfall IDs from local DB to skip duplicates ---
+    // --- Load existing Scryfall IDs from local DB to skip duplicates (per-shop) ---
     const existingScryfallIds = new Set();
     try {
-      const ids = await p.importedScryfallId.findMany({ select: { scryfallId: true } });
+      const ids = await p.importedScryfallId.findMany({ where: { shop }, select: { scryfallId: true } });
       for (const r of ids) existingScryfallIds.add(r.scryfallId);
     } catch (e) {
       log(`Could not load imported IDs: ${e.message || e}`);
     }
-    log(`Existing Scryfall IDs in DB: ${existingScryfallIds.size}`);
+    log(`Existing Scryfall IDs in DB for ${shop}: ${existingScryfallIds.size}`);
 
     // Whitelist mode (Excel import): trust the store, not the dedup table.
     // Fetch the set's existing variant SKUs so we only skip what is really published,
@@ -543,8 +543,8 @@ async function main() {
 
           created++;
           existingScryfallIds.add(card.id);
-          // Save to DB for future dedup
-          p.importedScryfallId.create({ data: { scryfallId: card.id } }).catch(() => {});
+          // Save to DB for future dedup (per-shop)
+          p.importedScryfallId.create({ data: { shop, scryfallId: card.id } }).catch(() => {});
 
           // Update progress
           await p.setImportJob.update({
