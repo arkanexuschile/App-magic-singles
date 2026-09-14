@@ -43,7 +43,7 @@ export async function getBillingStatus(request: Request): Promise<BillingStatus>
   return {
     hasActivePayment,
     planName: MONTHLY_PLAN,
-    amount: Number(process.env.BILLING_PLAN_PRICE ?? "9.99"),
+    amount: Number(process.env.BILLING_PLAN_PRICE ?? "19.99"),
     currencyCode: (process.env.BILLING_CURRENCY || "USD").toUpperCase(),
     interval: "Every 30 days",
     isTestMode: isBillingTestMode(),

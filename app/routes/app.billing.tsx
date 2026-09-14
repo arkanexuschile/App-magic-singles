@@ -74,6 +74,13 @@ export default function BillingPage() {
                   <strong>{status.planName}</strong> — {status.currencyCode}{" "}
                   {status.amount} / {isEs ? "cada 30 días" : "every 30 days"}
                 </Text>
+                {!status.hasActivePayment && (
+                  <Text as="p" variant="bodyMd" tone="success">
+                    {isEs
+                      ? "Incluye 7 días de prueba gratis. No se cobra nada durante la prueba."
+                      : "Includes a 7-day free trial. Nothing is charged during the trial."}
+                  </Text>
+                )}
                 {status.hasActivePayment ? (
                   <Badge tone="success">
                     {isEs ? "Suscripción activa" : "Active subscription"}

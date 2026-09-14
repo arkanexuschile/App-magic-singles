@@ -14,8 +14,8 @@ import { createShopAdminClient } from "./services/shopify/admin-client.server";
 export const MONTHLY_PLAN = "Monthly subscription";
 
 function billingPlanAmount(): number {
-  const raw = Number(process.env.BILLING_PLAN_PRICE ?? "9.99");
-  return Number.isFinite(raw) && raw > 0 ? raw : 9.99;
+  const raw = Number(process.env.BILLING_PLAN_PRICE ?? "19.99");
+  return Number.isFinite(raw) && raw > 0 ? raw : 19.99;
 }
 
 function billingCurrency(): string {
@@ -41,6 +41,7 @@ const shopify = shopifyApp({
   distribution: AppDistribution.AppStore,
   billing: {
     [MONTHLY_PLAN]: {
+      trialDays: 7,
       lineItems: [
         {
           amount: billingPlanAmount(),
