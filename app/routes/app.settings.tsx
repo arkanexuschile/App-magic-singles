@@ -11,10 +11,12 @@ import {
   Text,
 } from "@shopify/polaris";
 import { authenticate } from "../shopify.server";
+import { requireActiveSubscription } from "../services/billing.server";
 import { detectLanguage } from "../utils/i18n";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   await authenticate.admin(request);
+  await requireActiveSubscription(request);
   const lang = detectLanguage(request);
   return { lang };
 };

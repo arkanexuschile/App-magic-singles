@@ -21,6 +21,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 function SearchSvg() { return <svg viewBox="0 0 20 20" fill="currentColor" width="20" height="20"><path d="M12.5 11h-.79l-.28-.27A6.471 6.471 0 0013 6.5 6.5 6.5 0 106.5 13a6.471 6.471 0 004.23-1.57l.27.28v.79l5 4.99L17.49 16l-4.99-5zm-6 0C4.01 11 2 8.99 2 6.5S4.01 2 6.5 2 11 4.01 11 6.5 8.99 11 6.5 11z"/></svg>; }
 import { authenticate } from "../shopify.server";
+import { requireActiveSubscription } from "../services/billing.server";
 import { detectLanguage } from "../utils/i18n";
 
 type ProductNode = {
@@ -93,6 +94,7 @@ const PRODUCTS_QUERY = `#graphql
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin } = await authenticate.admin(request);
+  await requireActiveSubscription(request);
   const lang = detectLanguage(request);
   const url = new URL(request.url);
   const searchQuery = url.searchParams.get("search") || "";

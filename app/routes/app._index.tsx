@@ -29,6 +29,7 @@ import {
 import { recoverStaleRunningStateForShop } from "../services/sync-scheduler.server";
 import { listRecentSyncRunsForShop } from "../services/sync-run-history.server";
 import { authenticate } from "../shopify.server";
+import { requireActiveSubscription } from "../services/billing.server";
 import { detectLanguage } from "../utils/i18n";
 
 type RecentProduct = {
@@ -290,6 +291,7 @@ async function loadRecentProducts(
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
+  await requireActiveSubscription(request);
   const lang = detectLanguage(request);
   await recoverStaleRunningStateForShop(session.shop);
   const syncConfig = await getOrCreateSyncConfiguration(session.shop);

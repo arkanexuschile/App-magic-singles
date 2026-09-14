@@ -52,6 +52,7 @@ import {
   listRecentSyncRunsForShop,
 } from "../services/sync-run-history.server";
 import { authenticate } from "../shopify.server";
+import { requireActiveSubscription } from "../services/billing.server";
 import { detectLanguage, i18n } from "../utils/i18n";
 
 type ActionData =
@@ -156,6 +157,7 @@ async function hasCardKingdomDataInDb(): Promise<boolean> {
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
+  await requireActiveSubscription(request);
   const lang = detectLanguage(request);
   await recoverStaleRunningStateForShop(session.shop);
   const config = await getOrCreateSyncConfiguration(session.shop);

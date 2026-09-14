@@ -26,6 +26,7 @@ import {
 } from "@shopify/polaris";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { authenticate } from "../shopify.server";
+import { requireActiveSubscription } from "../services/billing.server";
 import { detectLanguage } from "../utils/i18n";
 import {
   listScryfallSets,
@@ -61,6 +62,7 @@ function LoaderSvg() {
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
+  await requireActiveSubscription(request);
   const lang = detectLanguage(request);
   const url = new URL(request.url);
   const searchQuery = url.searchParams.get("q") || "";

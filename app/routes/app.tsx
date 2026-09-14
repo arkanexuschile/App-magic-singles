@@ -32,6 +32,7 @@ export default function App() {
         <Link to={withLang("/app/sets")}>{t.navSets}</Link>
         <Link to={withLang("/app/bulk-import")}>{t.navBulkImport}</Link>
         <Link to={withLang("/app/price-sync")}>{t.navPriceSync}</Link>
+        <Link to={withLang("/app/billing")}>{t.navBilling}</Link>
       </NavMenu>
       <Outlet />
     </AppProvider>
