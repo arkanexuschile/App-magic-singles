@@ -1,7 +1,7 @@
 // Child process: imports a set into Shopify (no Remix, no framework)
 const { PrismaClient } = require('@prisma/client');
 
-const SHOPIFY_API_VERSION = '2025-01';
+const SHOPIFY_API_VERSION = '2026-04';
 const CLP_RATE = 1000;
 const SCRYFALL_MIN_INTERVAL = 100;
 
@@ -172,29 +172,35 @@ async function main() {
     }
 
     // Set the available quantity for a variant's inventory item at the primary location.
+    // 2026-04: InventorySetQuantitiesInput has no ignoreCompareQuantity; each
+    // quantity requires changeFromQuantity (null skips the CAS check), and the
+    // mutation requires an @idempotent key.
+    let idempotencyCounter = 0;
     async function applyVariantStock(inventoryItemId, qty) {
       const locationId = await getPrimaryLocationId();
       if (!locationId) {
         log(`WARN: no location found, cannot set stock`);
         return false;
       }
-      const mutation = `mutation SetInventory($input: InventorySetQuantitiesInput!) {
-        inventorySetQuantities(input: $input) {
+      idempotencyCounter += 1;
+      const mutation = `mutation SetInventory($input: InventorySetQuantitiesInput!, $idempotencyKey: String!) {
+        inventorySetQuantities(input: $input) @idempotent(key: $idempotencyKey) {
           userErrors { field message }
           inventoryAdjustmentGroup { changes { name } }
         }
       }`;
       const json = await graphql(mutation, {
         input: {
-          ignoreCompareQuantity: true,
           name: 'available',
           reason: 'correction',
           quantities: [{
             inventoryItemId,
             locationId,
             quantity: qty,
+            changeFromQuantity: null,
           }],
         },
+        idempotencyKey: `${jobId}:${inventoryItemId}:${Date.now()}:${idempotencyCounter}`,
       });
       const userErrors = json?.data?.inventorySetQuantities?.userErrors || [];
       if (json.errors || userErrors.length > 0) {
@@ -447,7 +453,6 @@ async function main() {
             productType: 'singlemtg',
             category: 'gid://shopify/TaxonomyCategory/tg-2-7',
             status: createAsActive ? 'ACTIVE' : 'DRAFT',
-            published: true,
             tags: [card.setCode.toUpperCase(), card.rarity, finishTag, `setcode-${card.setCode}`, 'singlemtg'].join(','),
             templateSuffix: 'singles',
             metafields: buildMetafields(card, finish.foil),

@@ -6,7 +6,7 @@ export type AdminGraphqlClient = {
   restGet?: (path: string) => Promise<Response>;
 };
 
-const ADMIN_API_VERSION = "2025-01";
+const ADMIN_API_VERSION = "2026-04";
 const SHOPIFY_GRAPHQL_TIMEOUT_MS = parseSafeMs(
   process.env.SHOPIFY_GRAPHQL_TIMEOUT_MS,
   30_000,

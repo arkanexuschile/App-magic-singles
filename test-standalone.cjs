@@ -7,7 +7,7 @@ function mem(label) {
   console.log(`MEM ${label}: heap=${Math.round(m.heapUsed/1024/1024)}MB rss=${Math.round(m.rss/1024/1024)}MB`);
 }
 
-const SHOPIFY_API_VERSION = '2025-01';
+const SHOPIFY_API_VERSION = '2026-04';
 
 async function shopifyGraphql(shop, token, query, variables) {
   const response = await fetch(`https://${shop}/admin/api/${SHOPIFY_API_VERSION}/graphql.json`, {

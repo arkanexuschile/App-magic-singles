@@ -757,7 +757,7 @@ export async function importCardsToShopify(params: {
       }
 
       const variantNumericId = variant.id.split("/").pop();
-      const restUrl = `https://${shop}/admin/api/2025-01/variants/${variantNumericId}.json`;
+      const restUrl = `https://${shop}/admin/api/2026-04/variants/${variantNumericId}.json`;
       const restResponse = await putWithRetry(restUrl, accessToken, {
         variant: {
           id: variantNumericId,
