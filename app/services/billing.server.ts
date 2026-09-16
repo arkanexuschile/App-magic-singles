@@ -1,5 +1,5 @@
 import { redirect } from "@remix-run/node";
-import { authenticate, MONTHLY_PLAN, isBillingTestMode } from "../shopify.server";
+import { authenticate, MONTHLY_PLAN, isBillingTestMode, isBillingEnabled } from "../shopify.server";
 
 export { MONTHLY_PLAN };
 
@@ -16,15 +16,22 @@ export type BillingStatus = {
 /**
  * Requires an active subscription. If the shop has none, redirects to /app/billing.
  * Call at the top of protected route loaders (after authenticate.admin).
+ * When billing is disabled (BILLING_ENABLED != true), this is a no-op.
  */
 export async function requireActiveSubscription(request: Request): Promise<void> {
+  if (!isBillingEnabled()) {
+    return;
+  }
   const { billing } = await authenticate.admin(request);
   await billing.require({
     plans: [MONTHLY_PLAN],
     isTest: isBillingTestMode(),
     onFailure: async () => {
+      // Preserve the embedded auth query params (embedded, hmac, host,
+      // id_token, shop, ...). Dropping them breaks embedded auth and loops
+      // the request to /auth/login.
       const url = new URL(request.url);
-      throw redirect(`/app/billing?lang=${url.searchParams.get("lang") ?? "es"}`);
+      throw redirect(`/app/billing${url.search}`);
     },
   });
 }

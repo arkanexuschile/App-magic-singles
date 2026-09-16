@@ -1,5 +1,5 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
-import { json } from "@remix-run/node";
+import { json, redirect } from "@remix-run/node";
 import { Form, useActionData, useLoaderData, useNavigation } from "@remix-run/react";
 import { TitleBar } from "@shopify/app-bridge-react";
 import {
@@ -12,12 +12,15 @@ import {
   Page,
   Text,
 } from "@shopify/polaris";
-import { authenticate, MONTHLY_PLAN, isBillingTestMode } from "../shopify.server";
+import { authenticate, MONTHLY_PLAN, isBillingTestMode, isBillingEnabled } from "../shopify.server";
 import { getBillingStatus } from "../services/billing.server";
 import { detectLanguage } from "../utils/i18n";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   await authenticate.admin(request);
+  if (!isBillingEnabled()) {
+    throw redirect(`/app${new URL(request.url).search}`);
+  }
   const lang = detectLanguage(request);
   const status = await getBillingStatus(request);
   return json({ lang, status });

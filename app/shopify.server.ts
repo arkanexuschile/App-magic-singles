@@ -30,6 +30,15 @@ export function isBillingTestMode(): boolean {
   return true;
 }
 
+/**
+ * Whether the subscription gate is enforced. Disabled by default so a
+ * single deployment can run either with billing (the store app) or without
+ * it (the original merchant app). Enable with BILLING_ENABLED=true.
+ */
+export function isBillingEnabled(): boolean {
+  return (process.env.BILLING_ENABLED || "").trim().toLowerCase() === "true";
+}
+
 const shopify = shopifyApp({
   apiKey: process.env.SHOPIFY_API_KEY,
   apiSecretKey: process.env.SHOPIFY_API_SECRET || "",

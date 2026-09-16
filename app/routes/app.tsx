@@ -5,7 +5,7 @@ import { AppProvider } from "@shopify/shopify-app-remix/react";
 import { NavMenu } from "@shopify/app-bridge-react";
 import polarisStyles from "@shopify/polaris/build/esm/styles.css?url";
 
-import { authenticate } from "../shopify.server";
+import { authenticate, isBillingEnabled } from "../shopify.server";
 import { detectLanguage, i18n } from "../utils/i18n";
 
 export const links = () => [{ rel: "stylesheet", href: polarisStyles }];
@@ -14,11 +14,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   await authenticate.admin(request);
   const lang = detectLanguage(request);
 
-  return { apiKey: process.env.SHOPIFY_API_KEY || "", lang };
+  return { apiKey: process.env.SHOPIFY_API_KEY || "", lang, billingEnabled: isBillingEnabled() };
 };
 
 export default function App() {
-  const { apiKey, lang } = useLoaderData<typeof loader>();
+  const { apiKey, lang, billingEnabled } = useLoaderData<typeof loader>();
   const t = i18n[lang];
   const withLang = (path: string) => `${path}?lang=${lang}`;
 
@@ -32,7 +32,7 @@ export default function App() {
         <Link to={withLang("/app/sets")}>{t.navSets}</Link>
         <Link to={withLang("/app/bulk-import")}>{t.navBulkImport}</Link>
         <Link to={withLang("/app/price-sync")}>{t.navPriceSync}</Link>
-        <Link to={withLang("/app/billing")}>{t.navBilling}</Link>
+        {billingEnabled && <Link to={withLang("/app/billing")}>{t.navBilling}</Link>}
       </NavMenu>
       <Outlet />
     </AppProvider>
