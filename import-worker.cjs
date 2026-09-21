@@ -2,7 +2,9 @@
 const { PrismaClient } = require('@prisma/client');
 
 const SHOPIFY_API_VERSION = '2026-04';
-const CLP_RATE = 1000;
+// USD -> published currency multiplier. Configurable so other markets can
+// change it without a code change (default: CLP approximation).
+const CLP_RATE = Number(process.env.CLP_RATE) > 0 ? Number(process.env.CLP_RATE) : 1000;
 const SCRYFALL_MIN_INTERVAL = 100;
 
 async function main() {

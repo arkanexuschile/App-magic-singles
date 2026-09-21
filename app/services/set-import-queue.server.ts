@@ -206,7 +206,10 @@ async function runJobInBackground(params: {
   const config = await getOrCreateSyncConfiguration(shop);
 
   const hasSelections = Array.isArray(cardSelections) && cardSelections.length > 0;
-  const workerPath = "/var/www/shopify-price-singles/import-worker.cjs";
+  // Env-driven so the same code can run as two separate deployments (merchant
+  // app + store app) pointing at their own worker script and database.
+  const workerPath = process.env.IMPORT_WORKER_PATH || "/var/www/shopify-price-singles/import-worker.cjs";
+  const workerDbUrl = process.env.DATABASE_URL || "file:/var/www/shopify-price-singles/prisma/dev.sqlite";
   const workerArgs = JSON.stringify({
     jobId,
     shop,
@@ -219,10 +222,10 @@ async function runJobInBackground(params: {
     genericDescription: config.genericDescription || "",
   });
 
-  console.log(`[SetImportQueue] spawning worker: ${workerPath} job=${jobId}`);
+  console.log(`[SetImportQueue] spawning worker: ${workerPath} job=${jobId} db=${workerDbUrl}`);
   const child = spawn(process.execPath, [workerPath, workerArgs], {
     stdio: "inherit",
-    env: { ...process.env, DATABASE_URL: "file:/var/www/shopify-price-singles/prisma/dev.sqlite" },
+    env: { ...process.env, DATABASE_URL: workerDbUrl },
   });
   child.on("error", (err) => console.error(`[SetImportQueue] spawn error: ${err.message}`));
   child.unref();

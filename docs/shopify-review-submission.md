@@ -1,107 +1,88 @@
-# Shopify App Review Submission Pack
+# Shopify App Review Submission Pack — Singles Magic: The Gathering
 
-This document contains copy/paste content and a final checklist for Shopify review.
+Copy/paste content and checklist for the Shopify App Store review of the store app
+(client_id `1fef72d2b05300b517964b5676b93892`).
 
-## 1) App Listing Copy (English)
+## 1) App Listing Copy
 
 ### App name
-Shopify Price Sync
+Singles Magic: The Gathering
 
-### One-line value proposition
-Sync Shopify variant prices from your external pricing API using SKU matching.
+### Tagline
+Import Magic: The Gathering singles from Scryfall with prices, stock and metafields.
 
-### Full app description
-Shopify Price Sync helps merchants keep product variant prices aligned with an external pricing source.
+### Description (English)
+Singles Magic: The Gathering helps stores list Magic: The Gathering single cards quickly.
 
 How it works:
-- The app reads price records from your external API endpoint.
-- Each record is matched to Shopify product variants by SKU.
-- Matching variants are updated in batch through the Shopify Admin API.
-- A sync summary is shown in-app (requested SKUs, matched variants, updated variants, and failures).
+- Pick one or more editions and import the cards from Scryfall.
+- Every card becomes a Shopify product with variants, metafields, image and price.
+- Download an Excel catalog, mark the cards you own, set quantities, and import only those.
+- Keep prices and inventory up to date from Card Kingdom reference prices.
 
 Core benefits:
-- Reduce manual price updates.
-- Keep multi-store pricing consistent.
-- Improve accuracy with SKU-based matching.
+- List hundreds of singles without manual data entry.
+- Consistent metafields (set, rarity, language, finish, collector number, Scryfall ID).
+- Control exactly what gets published (draft or active).
+
+### Descripción (Español)
+Singles Magic: The Gathering ayuda a las tiendas a publicar cartas individuales de Magic: The Gathering rápidamente.
+
+- Elige una o varias ediciones e importa las cartas desde Scryfall.
+- Cada carta se crea como producto de Shopify con variantes, metafields, imagen y precio.
+- Descarga un catálogo en Excel, marca las cartas que tienes, define cantidades e importa solo esas.
+- Mantén precios e inventario actualizados con precios de referencia de Card Kingdom.
 
 ### Support contact
-Use the same email configured in `APP_SUPPORT_EMAIL`.
+contacto@arkanexus.cl
 
-## 2) Required URLs (replace domain)
+## 2) Required URLs
 
-Use your production app domain:
-- Privacy policy: `https://YOUR_APP_DOMAIN/privacy`
-- Terms of service: `https://YOUR_APP_DOMAIN/terms`
-- Support: `https://YOUR_APP_DOMAIN/support`
+- Privacy policy: `https://app-singles.arkanexus.cl/privacy`
+- Terms of service: `https://app-singles.arkanexus.cl/terms`
+- Support: `https://app-singles.arkanexus.cl/support`
 
-## 3) Reviewer Notes (copy/paste)
+## 3) Pricing (must match the code)
 
-Use this in the "App review instructions" / "Notes for reviewer" field:
+- Recurring charge: **USD 19.99 every 30 days**
+- Free trial: **7 days**
+
+## 4) Reviewer Notes (copy/paste)
 
 ```
-Thank you for reviewing Shopify Price Sync.
+Thank you for reviewing Singles Magic: The Gathering.
 
 Test flow:
-1. Install the app in the provided test store.
-2. Open the embedded app and go to "Price Sync".
-3. Click "Sync prices now".
-4. Verify the success summary banner with counts for requested/matched/updated SKUs.
-5. Confirm variant prices were updated in Shopify Admin for SKUs present in the external source.
+1. Install the app on the provided test store.
+2. Open the app from the Shopify admin.
+3. Go to "Import Set", search for a small edition (e.g. code "big" or "cmr"),
+   pick a language and import a few cards as Draft.
+4. Verify the products/variants created in Shopify (title, price, SKU, metafields, image).
+5. Optionally go to "Import by Excel": download the catalog, mark the INCLUIR column
+   on a few rows, add a quantity, and upload it back to create only those cards.
+6. Billing: open "Subscription" and subscribe. The app runs in test mode during review,
+   so no real charge is made. A 7-day free trial applies.
 
 What the app does:
-- Reads price data from an external API configured by the merchant.
-- Matches records by variant SKU.
-- Updates variant prices through Admin GraphQL API.
+- Reads public card data from Scryfall and reference prices from Card Kingdom.
+- Creates/updates products, variants, metafields and inventory via the Admin API.
 
 Data and compliance:
-- Privacy webhooks implemented:
-  - /webhooks/customers/data_request
-  - /webhooks/customers/redact
-  - /webhooks/shop/redact
-- Public legal pages:
-  - /privacy
-  - /terms
-  - /support
-
-No billing is required for this version.
-```
-
-## 4) Test Data Format
-
-External API response must be JSON array:
-
-```json
-[
-  { "sku": "TSHIRT-BLACK-S", "price": 19.99 },
-  { "sku": "TSHIRT-BLACK-M", "price": 21.50 },
-  { "sku": "TSHIRT-BLACK-L", "price": 22.00 }
-]
+- Privacy webhooks implemented: /webhooks/customers/data_request, /webhooks/customers/redact, /webhooks/shop/redact
+- Public legal pages: /privacy, /terms, /support
 ```
 
 ## 5) Submission Checklist
 
-1. Configure support email environment variable:
-   - `APP_SUPPORT_EMAIL`
-2. Ensure production env vars are set:
-   - `EXTERNAL_PRICES_API_URL`
-   - `EXTERNAL_PRICES_API_TOKEN` (optional)
-   - `EXTERNAL_PRICES_API_TIMEOUT_MS` (optional)
-3. Deploy app and config:
-   - `npm run deploy`
-4. Set app distribution to Public and visibility to Limited visibility.
-5. Add URLs to Partner Dashboard:
-   - Privacy policy URL
-   - Terms of service URL
-   - Support URL
-6. Provide review assets:
-   - Test store access
-   - Short install/use video
-   - Steps to trigger sync and expected results
-
-## 6) Optional: Spanish Listing Copy
-
-### Propuesta de valor
-Sincroniza precios de variantes en Shopify desde tu API externa usando SKU.
-
-### Descripción
-Shopify Price Sync permite actualizar precios de variantes de forma masiva a partir de una API externa. La app obtiene registros con SKU y precio, hace matching contra variantes en Shopify y actualiza solo los precios que cambian. También muestra un resumen de resultados para validar el proceso.
+1. Deploy the store config: `shopify app deploy --config singles`
+2. In the Partner Dashboard (app `1fef72d2…`):
+   - App URL: `https://app-singles.arkanexus.cl`
+   - Redirect URL: `https://app-singles.arkanexus.cl/auth/callback`
+   - Scopes: `read_products,write_products,write_inventory`
+   - Privacy / Terms / Support URLs (above)
+   - Distribution: Public
+3. Listing: name, tagline, description (ES/EN), category, pricing (19.99 / 30d + 7-day trial),
+   screenshots, optional demo video, support email.
+4. Provide a development/test store with the app installed.
+5. Confirm API health shows no breaking changes.
+6. Submit for review.
