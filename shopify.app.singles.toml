@@ -5,7 +5,6 @@ client_id = "1fef72d2b05300b517964b5676b93892"
 name = "Singles Magic: The Gathering"
 application_url = "https://app-singles.arkanexus.cl"
 embedded = true
-handle = "singles-magic-the-gathering"
 
 [build]
 automatically_update_urls_on_dev = true
