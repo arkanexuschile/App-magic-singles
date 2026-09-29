@@ -46,6 +46,10 @@ type ConnectionPage = {
   pageInfo: { hasNextPage: boolean };
 };
 
+// Singles scope: only products tagged by the set importer count toward the
+// dashboard. The shop catalog also holds sealed product, accessories, ...
+const SINGLES_TAG_FILTER = "tag:singlemtg";
+
 type DashboardSummary = {
   productCount: number;
   variantCount: number;
@@ -123,8 +127,9 @@ async function fetchConnectionCount(params: {
   query: string;
   rootField: "products" | "productVariants";
   maxRecords: number;
+  searchQuery: string;
 }) {
-  const { adminGraphql, query, rootField, maxRecords } = params;
+  const { adminGraphql, query, rootField, maxRecords, searchQuery } = params;
   const pageSize = 250;
   let cursor: string | null = null;
   let hasNextPage = true;
@@ -136,6 +141,7 @@ async function fetchConnectionCount(params: {
       variables: {
         first: pageSize,
         after: cursor,
+        query: searchQuery,
       },
     });
     const json = (await response.json()) as {
@@ -179,9 +185,10 @@ async function loadDashboardSummary(
       adminGraphql,
       rootField: "products",
       maxRecords: 5000,
+      searchQuery: SINGLES_TAG_FILTER,
       query: `#graphql
-        query CountProducts($first: Int!, $after: String) {
-          products(first: $first, after: $after) {
+        query CountProducts($first: Int!, $after: String, $query: String) {
+          products(first: $first, after: $after, query: $query) {
             edges {
               cursor
             }
@@ -196,9 +203,10 @@ async function loadDashboardSummary(
       adminGraphql,
       rootField: "productVariants",
       maxRecords: 5000,
+      searchQuery: SINGLES_TAG_FILTER,
       query: `#graphql
-        query CountVariants($first: Int!, $after: String) {
-          productVariants(first: $first, after: $after) {
+        query CountVariants($first: Int!, $after: String, $query: String) {
+          productVariants(first: $first, after: $after, query: $query) {
             edges {
               cursor
             }
@@ -228,7 +236,7 @@ async function loadRecentProducts(
   const response = await adminGraphql(
     `#graphql
       query DashboardRecentProducts {
-        products(first: 8, sortKey: UPDATED_AT, reverse: true) {
+        products(first: 8, sortKey: UPDATED_AT, reverse: true, query: "tag:singlemtg") {
           edges {
             node {
               id

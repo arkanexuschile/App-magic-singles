@@ -488,7 +488,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         `,
         {
           variables: {
-            query: `title:*${safeQuery}* OR sku:${safeQuery}`,
+            query: `(title:*${safeQuery}* OR sku:${safeQuery}) AND tag:singlemtg`,
           },
         },
       );

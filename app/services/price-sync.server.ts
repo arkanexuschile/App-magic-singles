@@ -234,6 +234,8 @@ type VariantNode = {
     title: string;
     updatedAt?: string | null;
     totalVariants: number;
+    tags?: string[] | null;
+    productType?: string | null;
     customMetafields?: MetafieldConnection;
     variants: {
       edges: Array<{
@@ -457,6 +459,12 @@ const PREVIOUS_PRICE_METAFIELD_NAMESPACE = "custom";
 const PREVIOUS_PRICE_METAFIELD_KEY = "previous_price";
 const FOIL_METAFIELD_NAMESPACE = "custom";
 const FOIL_METAFIELD_KEY = "foil";
+// Singles scope: products created by the set importer carry the `singlemtg`
+// tag and productType. The price sync must never touch the rest of the shop
+// catalog (sealed product, accessories, ...).
+const SINGLES_TAG = "singlemtg";
+const SINGLES_PRODUCT_TYPE = "singlemtg";
+const SINGLES_TAG_QUERY = `tag:${SINGLES_TAG}`;
 const PRODUCT_IMAGE_SYNC_FINGERPRINT_NAMESPACE = "custom";
 const PRODUCT_IMAGE_SYNC_FINGERPRINT_KEY = "scryfall_image_fp";
 const FX_TIMEOUT_MS = parseSafeMs(process.env.EXTERNAL_PRICES_API_TIMEOUT_MS, 15000);
@@ -1940,6 +1948,19 @@ function isScannableForSelectedSearchMethod(variant: VariantNode, prefs: SyncPre
   return (variant.product.title ?? "").trim().length > 0;
 }
 
+function isSinglesProduct(variant: VariantNode): boolean {
+  const tags = variant.product.tags ?? [];
+  if (
+    tags.some((tag) => (tag ?? "").trim().toLowerCase() === SINGLES_TAG)
+  ) {
+    return true;
+  }
+  return (
+    (variant.product.productType ?? "").trim().toLowerCase() ===
+    SINGLES_PRODUCT_TYPE
+  );
+}
+
 async function loadAllVariants(
   admin: AdminGraphqlClient,
   prefs: SyncPreferences,
@@ -1974,7 +1995,7 @@ async function loadAllVariants(
           $customIdNs: String!,
           $customIdKey: String!
         ) {
-          productVariants(first: $first, after: $after) {
+          productVariants(first: $first, after: $after, query: "${SINGLES_TAG_QUERY}") {
             edges {
               cursor
               node {
@@ -1987,6 +2008,8 @@ async function loadAllVariants(
                   title
                   updatedAt
                   totalVariants
+                  productType
+                  tags
                   customMetafields: metafields(first: 50, namespace: "custom") {
                     edges {
                       node {
@@ -2218,7 +2241,7 @@ async function loadVariantsForCustomScryfallValidation(
           $customIdNs: String!,
           $customIdKey: String!
         ) {
-          productVariants(first: $first, after: $after) {
+          productVariants(first: $first, after: $after, query: "${SINGLES_TAG_QUERY}") {
             edges {
               cursor
               node {
@@ -3827,7 +3850,11 @@ export async function syncCatalogWithScryfall(params: {
     maxProducts: maxProducts ?? null,
   });
   const loadedVariants = await loadAllVariants(admin, preferences);
-  const allScannableVariants = loadedVariants.filter((variant) =>
+  // Defense in depth: the GraphQL query already scopes to `tag:singlemtg`,
+  // but the sync must never reprice a non-single product even if that
+  // query filter ever changes.
+  const singlesVariants = loadedVariants.filter(isSinglesProduct);
+  const allScannableVariants = singlesVariants.filter((variant) =>
     isScannableForSelectedSearchMethod(variant, preferences),
   );
   const excludedProductSet =
@@ -3840,6 +3867,8 @@ export async function syncCatalogWithScryfall(params: {
   writeSyncLog("info", "[product-debug] selected search method candidate filter", {
     step: "selected_search_method_candidate_filter",
     loadedVariants: loadedVariants.length,
+    singlesVariants: singlesVariants.length,
+    skippedNonSingles: loadedVariants.length - singlesVariants.length,
     candidateVariants: allScannableVariants.length,
     excludedProductsAlreadyProcessed: excludedProductSet?.size ?? 0,
     candidateVariantsAfterExclusions: allVariants.length,
