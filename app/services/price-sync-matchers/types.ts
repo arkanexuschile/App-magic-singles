@@ -4,6 +4,7 @@ export type ScryfallCard = {
   id: string;
   name: string;
   set?: string;
+  lang?: string;
   image_uris?: Record<string, string>;
   card_faces?: Array<{ image_uris?: Record<string, string> }>;
   prices: {

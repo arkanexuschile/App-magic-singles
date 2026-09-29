@@ -166,26 +166,60 @@ function parseSkuToken(rawSku: string): {
   let language = "en";
   let foilMode: "foil" | "nonfoil" | null = null;
 
-  if (remainder.length >= 2) {
-    const maybeLang = remainder.slice(-2);
-    if (LANG_CODES.has(maybeLang)) {
-      language = maybeLang;
-      remainder = remainder.slice(0, -2);
+  // Strip trailing markers iteratively so combined suffixes resolve:
+  // "10foilen" (foil+lang), "7esfoil" (lang+foil), "174foilsp"/"261sp"
+  // (legacy Spanish markers used by older imports).
+  for (;;) {
+    if (remainder.endsWith("nonfoil") && remainder.length > "nonfoil".length) {
+      foilMode = "nonfoil";
+      remainder = remainder.slice(0, -"nonfoil".length);
+      continue;
     }
-  }
-
-  if (remainder.endsWith("nonfoil")) {
-    foilMode = "nonfoil";
-    remainder = remainder.slice(0, -"nonfoil".length);
-  } else if (remainder.endsWith("foil")) {
-    foilMode = "foil";
-    remainder = remainder.slice(0, -"foil".length);
-  } else if (remainder.endsWith("nf")) {
-    foilMode = "nonfoil";
-    remainder = remainder.slice(0, -2);
-  } else if (remainder.endsWith("f")) {
-    foilMode = "foil";
-    remainder = remainder.slice(0, -1);
+    if (remainder.endsWith("foilsp") && remainder.length > "foilsp".length) {
+      foilMode = "foil";
+      language = "es";
+      remainder = remainder.slice(0, -"foilsp".length);
+      continue;
+    }
+    if (remainder.endsWith("foil") && remainder.length > "foil".length) {
+      foilMode = "foil";
+      remainder = remainder.slice(0, -"foil".length);
+      continue;
+    }
+    if (remainder.endsWith("nf") && remainder.length > 2) {
+      foilMode = "nonfoil";
+      remainder = remainder.slice(0, -2);
+      continue;
+    }
+    if (remainder.endsWith("f") && remainder.length > 1) {
+      foilMode = "foil";
+      remainder = remainder.slice(0, -1);
+      continue;
+    }
+    if (remainder.length > 3) {
+      const maybeLang3 = remainder.slice(-3);
+      if (maybeLang3 === "zhs" || maybeLang3 === "zht") {
+        language = maybeLang3;
+        remainder = remainder.slice(0, -3);
+        continue;
+      }
+    }
+    if (remainder.length > 2) {
+      const maybeLang = remainder.slice(-2);
+      if (LANG_CODES.has(maybeLang)) {
+        language = maybeLang;
+        remainder = remainder.slice(0, -2);
+        continue;
+      }
+      // Legacy Spanish marker: only when a digit precedes "sp" so collector
+      // numbers merely ending in "sp" are left untouched.
+      if (maybeLang === "sp" && /[0-9]sp$/.test(remainder)) {
+        language = "es";
+        remainder = remainder.slice(0, -2);
+        continue;
+      }
+    }
+    break;
   }
 
   if (!remainder) {
@@ -344,6 +378,17 @@ export async function fetchScryfallCardBySku(sku: string): Promise<ScryfallLooku
   const card = resolvedPayload as ScryfallCard;
   if (token.foilMode && card.finishes && !card.finishes.includes(token.foilMode)) {
     return null;
+  }
+
+  // Non-English prints often carry no USD prices on Scryfall. Fall back to
+  // the English print of the same set+collector number so Spanish singles
+  // still get a price instead of being skipped.
+  const pricedCard =
+    (card.lang ?? "en") !== "en" && !card.prices?.usd && !card.prices?.usd_foil
+      ? ((await fetchJson(withoutLanguage)) as ScryfallCard | null)
+      : null;
+  if (pricedCard && typeof pricedCard === "object" && (pricedCard.prices?.usd || pricedCard.prices?.usd_foil)) {
+    return { card: pricedCard, foilMode: token.foilMode };
   }
 
   return { card, foilMode: token.foilMode };
