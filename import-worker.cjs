@@ -86,7 +86,17 @@ async function main() {
       const json = await scryfallFetch(url);
       const cards = json.data
         .filter(c => c.layout !== 'art_series')
-        .map(c => ({
+        .map(c => {
+          // DFC (transform/modal_dfc/etc.): Scryfall expone las imágenes en
+          // card_faces[].image_uris y NO en image_uris a nivel raíz. Si hay
+          // imagen raíz (normal/adventure/meld/split) se usa sola; si no,
+          // se usan todas las caras para que la DFC traiga frente y reverso.
+          const topImage = c.image_uris?.large || c.image_uris?.normal || c.image_uris?.small;
+          const faceImages = (c.card_faces || []).map(
+            (f) => f.image_uris?.large || f.image_uris?.normal || f.image_uris?.small || null,
+          );
+          const faceNames = (c.card_faces || []).map((f) => f.name || c.name);
+          return {
           id: c.id,
           name: c.name,
           setCode: c.set,
@@ -96,7 +106,9 @@ async function main() {
           oracleId: c.oracle_id,
           usdPrice: c.prices.usd ? parseFloat(c.prices.usd) : null,
           usdFoilPrice: c.prices.usd_foil ? parseFloat(c.prices.usd_foil) : null,
-          imageUrl: c.image_uris?.large || c.image_uris?.normal || c.image_uris?.small,
+          imageUrl: topImage || faceImages[0] || null,
+          imageUrls: topImage ? [topImage] : faceImages.filter(Boolean),
+          faceNames: topImage ? [c.name] : faceNames,
           finishes: c.finishes || ['nonfoil'],
           hasFoil: (c.finishes || ['nonfoil']).includes('foil'),
           hasNonfoil: (c.finishes || ['nonfoil']).includes('nonfoil'),
@@ -114,7 +126,8 @@ async function main() {
           fullArt: !!c.full_art,
           textless: !!c.textless,
           promo: !!c.promo,
-        }));
+          };
+        });
       return {
         cards,
         nextPage: json.has_more ? json.next_page?.replace(/^https?:\/\/api\.scryfall\.com/, '') : null,
@@ -536,15 +549,20 @@ async function main() {
             }
           }
 
-          // Add product image
-          if (card.imageUrl) {
-            const imgResult = await graphql(
+          // Add product images (una por cara: DFC => frente y reverso)
+          if (card.imageUrls && card.imageUrls.length > 0) {
+            const media = card.imageUrls.map((url, i) => ({
+              mediaContentType: 'IMAGE',
+              originalSource: url,
+              alt: (card.faceNames && card.faceNames[i]) || card.name,
+            }));
+            await graphql(
               `mutation AddMedia($productId: ID!, $media: [CreateMediaInput!]!) {
                 productCreateMedia(productId: $productId, media: $media) {
                   mediaUserErrors { field message }
                 }
               }`,
-              { productId, media: [{ mediaContentType: 'IMAGE', originalSource: card.imageUrl, alt: card.name }] }
+              { productId, media },
             ).catch(() => null);
           }
 
