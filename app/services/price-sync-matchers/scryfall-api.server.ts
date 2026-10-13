@@ -476,3 +476,36 @@ export async function doesScryfallIdExistForValidation(id: string): Promise<bool
     return false;
   }
 }
+
+// Card Kingdom only prices English printings. When a variant resolves to a
+// non-English print (for example via a stored Spanish Scryfall ID), the CK
+// cache has no entry for that id. This resolves the English print of the same
+// set+collector number so the caller can retry the Card Kingdom lookup.
+export async function fetchEnglishPrintIdForCardKingdom(
+  scryfallId: string,
+): Promise<string | null> {
+  const resolved = await fetchScryfallCardById(scryfallId);
+  const card = resolved?.card;
+  if (!card) {
+    return null;
+  }
+  if ((card.lang ?? "en") === "en") {
+    return null;
+  }
+  if (!card.set || !card.collector_number) {
+    return null;
+  }
+
+  const englishPrintUrl = `https://api.scryfall.com/cards/${encodeURIComponent(
+    card.set,
+  )}/${encodeURIComponent(card.collector_number)}`;
+  const englishPayload = await fetchJson(englishPrintUrl);
+  if (!englishPayload || typeof englishPayload !== "object") {
+    return null;
+  }
+  const englishCard = englishPayload as ScryfallCard;
+  if (!englishCard.id || englishCard.id === scryfallId) {
+    return null;
+  }
+  return englishCard.id;
+}

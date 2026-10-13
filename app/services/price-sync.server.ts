@@ -4,6 +4,7 @@ import { gunzipSync } from "node:zlib";
 import { matchCardForVariant } from "./price-sync-matchers/index.server";
 import {
   doesScryfallIdExistForValidation,
+  fetchEnglishPrintIdForCardKingdom,
   normalizeScryfallIdentifier,
 } from "./price-sync-matchers/scryfall-api.server";
 import {
@@ -1866,11 +1867,31 @@ async function resolvePriceFromSource(params: {
     if (!scryfallId) {
       return { price: null, reason: "Missing Scryfall ID for Card Kingdom lookup" };
     }
-    const { price, reason } = await fetchCardKingdomUsdPrice({ scryfallId, foilMode });
-    if (!price) {
-      return { price: null, reason: reason ?? "Card Kingdom has no USD price for this card" };
+    const primary = await fetchCardKingdomUsdPrice({ scryfallId, foilMode });
+    if (primary.price) {
+      return { price: primary.price };
     }
-    return { price };
+
+    // Card Kingdom only prices English printings. If the resolved print is
+    // non-English (e.g. a Spanish Scryfall ID), retry with the English print
+    // of the same set+collector number before giving up.
+    const englishPrintId = await fetchEnglishPrintIdForCardKingdom(scryfallId);
+    if (englishPrintId) {
+      const fallback = await fetchCardKingdomUsdPrice({
+        scryfallId: englishPrintId,
+        foilMode,
+      });
+      if (fallback.price) {
+        writeSyncLog("info", "[product-debug] cardkingdom english print fallback", {
+          scryfallId,
+          englishScryfallId: englishPrintId,
+          foilMode: foilMode === "foil" ? "foil" : "nonfoil",
+        });
+        return { price: fallback.price };
+      }
+    }
+
+    return { price: null, reason: primary.reason ?? "Card Kingdom has no USD price for this card" };
   }
 
   if (!card) {
