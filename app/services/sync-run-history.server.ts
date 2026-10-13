@@ -267,10 +267,6 @@ export async function startSyncRunHistory(params: {
   selectedProductsCount?: number | null;
   maxProducts?: number | null;
 }): Promise<string | null> {
-  if (params.runKind === "test") {
-    return null;
-  }
-
   if (!hasHistoryDelegate()) {
     writeSyncLog("warn", "[price-sync-run-history] prisma delegate unavailable, skipping start", {
       shop: params.shop,
@@ -290,6 +286,9 @@ export async function startSyncRunHistory(params: {
       },
       select: { id: true },
     });
+    if (params.runKind === "test") {
+      await pruneOldTestRuns(params.shop);
+    }
     return created.id;
   } catch (error) {
     if (isMissingTableError(error)) {
@@ -297,6 +296,58 @@ export async function startSyncRunHistory(params: {
         shop: params.shop,
         runKind: params.runKind,
       });
+      return null;
+    }
+    throw error;
+  }
+}
+
+const MAX_KEPT_TEST_RUNS_PER_SHOP = 20;
+
+async function pruneOldTestRuns(shop: string): Promise<void> {
+  if (!hasHistoryDelegate()) {
+    return;
+  }
+
+  try {
+    const runs = await db.syncRunHistory.findMany({
+      where: { shop, runKind: "test" },
+      orderBy: { startedAt: "desc" },
+      select: { id: true },
+    });
+    const staleIds = runs.slice(MAX_KEPT_TEST_RUNS_PER_SHOP).map((run) => run.id);
+    if (staleIds.length === 0) {
+      return;
+    }
+    await db.syncRunHistory.deleteMany({
+      where: { id: { in: staleIds }, shop, runKind: "test" },
+    });
+  } catch (error) {
+    if (isMissingTableError(error)) {
+      return;
+    }
+    writeSyncLog("warn", "[price-sync-run-history] pruning old test runs failed", {
+      shop,
+      message: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
+export async function getLatestTestRunForShop(
+  shop: string,
+): Promise<{ id: string; status: string; startedAt: Date; finishedAt: Date | null } | null> {
+  if (!hasHistoryDelegate()) {
+    return null;
+  }
+
+  try {
+    return await db.syncRunHistory.findFirst({
+      where: { shop, runKind: "test" },
+      orderBy: { startedAt: "desc" },
+      select: { id: true, status: true, startedAt: true, finishedAt: true },
+    });
+  } catch (error) {
+    if (isMissingTableError(error)) {
       return null;
     }
     throw error;
@@ -492,6 +543,7 @@ export async function listSyncRunHistoryItemsForShop(shop: string) {
 export async function listSyncRunHistoryItemsForRun(params: {
   shop: string;
   runId: string;
+  includeTestKinds?: boolean;
 }) {
   if (!hasHistoryDelegate() || !hasHistoryItemDelegate()) {
     return [] as Array<{
@@ -521,7 +573,7 @@ export async function listSyncRunHistoryItemsForRun(params: {
       where: {
         id: params.runId,
         shop: params.shop,
-        runKind: { not: "test" },
+        ...(params.includeTestKinds ? {} : { runKind: { not: "test" } }),
       },
       select: {
         id: true,

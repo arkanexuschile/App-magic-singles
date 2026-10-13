@@ -49,6 +49,7 @@ import {
 } from "../services/sync-scheduler.server";
 import {
   clearSyncRunHistoryForShop,
+  getLatestTestRunForShop,
   listRecentSyncRunsForShop,
 } from "../services/sync-run-history.server";
 import { authenticate } from "../shopify.server";
@@ -125,6 +126,7 @@ type PriceSyncLoaderData = {
   testStatus: ReturnType<typeof getTestSyncStatusForShop>;
   scryfallCheckStatus: ReturnType<typeof getScryfallCheckStatusForShop>;
   recentSyncRuns: Awaited<ReturnType<typeof listRecentSyncRunsForShop>>;
+  latestTestRun: Awaited<ReturnType<typeof getLatestTestRunForShop>>;
 };
 
 type ScryfallCheckStatusForUi = NonNullable<PriceSyncLoaderData["scryfallCheckStatus"]>;
@@ -166,6 +168,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const testStatus = getTestSyncStatusForShop(session.shop);
   const scryfallCheckStatus = getScryfallCheckStatusForShop(session.shop);
   const recentSyncRuns = await listRecentSyncRunsForShop(session.shop, 5);
+  const latestTestRun = await getLatestTestRunForShop(session.shop);
   const now = new Date();
   const nextRunAtDisplay =
     config.enabled && (!config.nextRunAt || config.nextRunAt <= now)
@@ -180,6 +183,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     testStatus,
     scryfallCheckStatus,
     recentSyncRuns,
+    latestTestRun,
   } satisfies PriceSyncLoaderData;
 };
 
@@ -884,6 +888,7 @@ export default function PriceSyncPage() {
     testStatus,
     scryfallCheckStatus,
     recentSyncRuns,
+    latestTestRun,
   } = useLoaderData<PriceSyncLoaderData>();
   const navigation = useNavigation();
   const revalidator = useRevalidator();
@@ -1400,6 +1405,60 @@ export default function PriceSyncPage() {
           : "Could not download history CSV",
         { isError: true },
       );
+    } finally {
+      setDownloadingRunId((current) => (current === runId ? null : current));
+    }
+  };
+
+  const downloadHistoryXlsx = async (runId: string) => {
+    if (!runId || downloadingRunId) {
+      return;
+    }
+
+    setDownloadingRunId(runId);
+    try {
+      const query = new URLSearchParams({ runId });
+      query.set("lang", lang);
+      const shopLocale = shopify.config.locale?.trim();
+      if (shopLocale) {
+        query.set("shopLocale", shopLocale);
+      }
+
+      const response = await fetch(
+        `/app/price-sync/history-xlsx?${query.toString()}`,
+        {
+          method: "GET",
+          credentials: "same-origin",
+          headers: {
+            Accept:
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          },
+        },
+      );
+
+      const contentType = response.headers.get("content-type") ?? "";
+      if (!response.ok || /text\/html/i.test(contentType)) {
+        throw new Error("Download returned HTML instead of XLSX");
+      }
+
+      const blob = await response.blob();
+      const disposition = response.headers.get("content-disposition") ?? "";
+      const fileNameMatch = /filename="?([^"]+)"?/i.exec(disposition);
+      const fileName = fileNameMatch?.[1] ?? `sync-history-${runId}.xlsx`;
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = objectUrl;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(objectUrl);
+    } catch (error) {
+      console.error("history xlsx download failed", {
+        runId,
+        message: error instanceof Error ? error.message : String(error),
+      });
+      shopify.toast.show(t.xlsxDownloadError, { isError: true });
     } finally {
       setDownloadingRunId((current) => (current === runId ? null : current));
     }
@@ -1925,6 +1984,19 @@ export default function PriceSyncPage() {
                   </Banner>
                 </Box>
               )}
+              {latestTestRun && !isTestSyncActive ? (
+                <Box paddingBlockStart="300">
+                  <Button
+                    onClick={() => {
+                      void downloadHistoryXlsx(latestTestRun.id);
+                    }}
+                    loading={downloadingRunId === latestTestRun.id}
+                    variant="secondary"
+                  >
+                    {t.downloadTestExcelButton}
+                  </Button>
+                </Box>
+              ) : null}
               <Box>
                 <List>
                   <List.Item>
@@ -2034,18 +2106,32 @@ export default function PriceSyncPage() {
                           </td>
                           <td style={{ padding: "8px", borderBottom: "1px solid #f1f3f5", textAlign: "right" }}>
                             {run.downloadRunId ? (
-                              <Button
-                                onClick={() => {
-                                  if (run.downloadRunId) {
-                                    void downloadHistoryCsv(run.downloadRunId);
-                                  }
-                                }}
-                                loading={downloadingRunId === run.downloadRunId}
-                                variant="secondary"
-                                size="micro"
-                              >
-                                {t.downloadSyncHistoryButton}
-                              </Button>
+                              <>
+                                <Button
+                                  onClick={() => {
+                                    if (run.downloadRunId) {
+                                      void downloadHistoryXlsx(run.downloadRunId);
+                                    }
+                                  }}
+                                  loading={downloadingRunId === run.downloadRunId}
+                                  variant="secondary"
+                                  size="micro"
+                                >
+                                  {t.downloadSyncHistoryExcelButton}
+                                </Button>{" "}
+                                <Button
+                                  onClick={() => {
+                                    if (run.downloadRunId) {
+                                      void downloadHistoryCsv(run.downloadRunId);
+                                    }
+                                  }}
+                                  loading={downloadingRunId === run.downloadRunId}
+                                  variant="tertiary"
+                                  size="micro"
+                                >
+                                  {t.downloadSyncHistoryButton}
+                                </Button>
+                              </>
                             ) : (
                               <Text as="span" variant="bodySm" tone="subdued">
                                 -

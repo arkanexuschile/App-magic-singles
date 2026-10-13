@@ -39,7 +39,7 @@ function escapeCsvValue(value: unknown): string {
   return `"${text.replace(/"/g, '""')}"`;
 }
 
-function localizeHistoryRunKind(value: string, t: Translation): string {
+export function localizeHistoryRunKind(value: string, t: Translation): string {
   switch (value) {
     case "scheduled":
       return t.syncHistoryRunKindScheduled;
@@ -99,7 +99,7 @@ function localizeHistoryItemStatus(value: string, t: Translation): string {
   }
 }
 
-function classifyHistoryRow(params: {
+export function classifyHistoryRow(params: {
   status: string;
   reason: string | null;
   previousPrice: string | null;
@@ -169,7 +169,7 @@ function classifyHistoryRow(params: {
   };
 }
 
-function localizeHistoryReason(reason: string | null, lang: AppLanguage): string {
+export function localizeHistoryReason(reason: string | null, lang: AppLanguage): string {
   const normalized = reason?.trim() ?? "";
   if (!normalized) {
     return "";
