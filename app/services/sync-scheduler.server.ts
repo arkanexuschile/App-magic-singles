@@ -1639,6 +1639,7 @@ async function runManualSyncForShop(
     selectedProductIds?: string[];
     maxProducts?: number;
     kind?: ManualSyncKind;
+    dryRun?: boolean;
   },
 ) {
   if (!global.__priceSyncManualShopsRunning || !global.__priceSyncShopsRunning) {
@@ -1731,6 +1732,7 @@ async function runManualSyncForShop(
         recurringPriceOnly: false,
         selectedProductIds: options?.selectedProductIds,
         maxProducts: options?.maxProducts,
+        dryRun: options?.dryRun === true,
         onProgress: async (progress) => {
           setStatusForKind({
             shop,
@@ -1955,6 +1957,7 @@ export async function enqueueManualSyncForShop(
     selectedProductIds?: string[];
     maxProducts?: number;
     kind?: ManualSyncKind;
+    dryRun?: boolean;
   },
 ): Promise<{ queued: boolean }> {
   if (
@@ -2008,6 +2011,7 @@ export async function enqueueManualSyncForShop(
     selectedProductIds: options?.selectedProductIds,
     maxProducts: options?.maxProducts,
     kind,
+    dryRun: options?.dryRun === true,
   });
 
   return { queued: true };

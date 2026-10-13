@@ -3794,6 +3794,7 @@ export async function syncCatalogWithScryfall(params: {
   maxProducts?: number;
   scheduledCursor?: ScheduledProductCursor;
   imageBlockDelayMsOverride?: number;
+  dryRun?: boolean;
   onProgress?: (progress: {
     phase?:
       | "scanning"
@@ -3823,6 +3824,7 @@ export async function syncCatalogWithScryfall(params: {
     maxProducts,
     scheduledCursor,
     imageBlockDelayMsOverride,
+    dryRun,
     onProgress,
   } = params;
   const progressEvery =
@@ -3848,6 +3850,7 @@ export async function syncCatalogWithScryfall(params: {
     syncImage: preferences.syncImage,
     selectedProducts: selectedProductIds?.length ?? null,
     maxProducts: maxProducts ?? null,
+    dryRun: Boolean(dryRun),
   });
   const loadedVariants = await loadAllVariants(admin, preferences);
   // Defense in depth: the GraphQL query already scopes to `tag:singlemtg`,
@@ -4423,9 +4426,27 @@ export async function syncCatalogWithScryfall(params: {
       failures: result.failures.length,
     });
   }
-  let priceSyncOutcome;
+  let priceSyncOutcome: {
+    updatedCount: number;
+    failures: Array<{ variantId: string; reason: string }>;
+    successfulUpdates: Array<{
+      id: string;
+      productId: string;
+      variantId: string;
+      currentPrice: string;
+      price: string;
+    }>;
+  };
   let lastPriceProgressAt = 0;
-  try {
+  if (dryRun) {
+    // Preview mode: report what would change without calling Shopify.
+    priceSyncOutcome = {
+      updatedCount: priceUpdates.length,
+      failures: [],
+      successfulUpdates: priceUpdates,
+    };
+  } else {
+    try {
     // Do not enforce a single stage-wide timeout for price updates.
     // Each GraphQL request already has its own timeout/retry policy and
     // updates are processed in chunks, so large runs can complete safely.
@@ -4458,6 +4479,7 @@ export async function syncCatalogWithScryfall(params: {
       message,
     });
     throw new Error(`Price update stage failed: ${message}`);
+    }
   }
   writeSyncLog("info", "[product-debug] price update stage end", {
     requestedUpdates: priceUpdates.length,
@@ -4554,47 +4576,55 @@ export async function syncCatalogWithScryfall(params: {
     ...previousPriceVariantUpdates,
   ];
 
-  writeSyncLog("info", "[product-debug] previous price metafield stage start", {
-    requestedUpdates: previousPriceUpdates.length,
-  });
-  const previousPriceStageTimeoutMs = getDynamicOperationTimeoutMs(previousPriceUpdates.length);
-  try {
-    result.previousPricesStored = await withTimeout(
-      setVariantTextMetafieldsWithRetry(admin, previousPriceUpdates),
-      previousPriceStageTimeoutMs,
-      "Timed out while storing previous price metafields",
-    );
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    writeSyncLog("error", "[product-debug] previous price metafield stage failed", {
+  if (dryRun) {
+    // Preview mode: count what would be backed up without writing.
+    result.previousPricesStored = previousPriceUpdates.length;
+  } else {
+    writeSyncLog("info", "[product-debug] previous price metafield stage start", {
       requestedUpdates: previousPriceUpdates.length,
-      message,
     });
-    throw new Error(`Previous price metafield stage failed: ${message}`);
-  }
-  writeSyncLog("info", "[product-debug] previous price metafield stage end", {
-    requestedUpdates: previousPriceUpdates.length,
-    timeoutMs: previousPriceStageTimeoutMs,
-    stored: result.previousPricesStored,
-  });
-  if (previousPriceUpdates.length > result.previousPricesStored) {
-    const failureReason = `Failed to store previous price metafield for ${previousPriceUpdates.length - result.previousPricesStored} updated variants`;
-    result.failures.push({
-      variantId: "backup_meta",
-      reason: failureReason,
+    const previousPriceStageTimeoutMs = getDynamicOperationTimeoutMs(previousPriceUpdates.length);
+    try {
+      result.previousPricesStored = await withTimeout(
+        setVariantTextMetafieldsWithRetry(admin, previousPriceUpdates),
+        previousPriceStageTimeoutMs,
+        "Timed out while storing previous price metafields",
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      writeSyncLog("error", "[product-debug] previous price metafield stage failed", {
+        requestedUpdates: previousPriceUpdates.length,
+        message,
+      });
+      throw new Error(`Previous price metafield stage failed: ${message}`);
+    }
+    writeSyncLog("info", "[product-debug] previous price metafield stage end", {
+      requestedUpdates: previousPriceUpdates.length,
+      timeoutMs: previousPriceStageTimeoutMs,
+      stored: result.previousPricesStored,
     });
-    failureReasons.set(failureReason, (failureReasons.get(failureReason) ?? 0) + 1);
+    if (previousPriceUpdates.length > result.previousPricesStored) {
+      const failureReason = `Failed to store previous price metafield for ${previousPriceUpdates.length - result.previousPricesStored} updated variants`;
+      result.failures.push({
+        variantId: "backup_meta",
+        reason: failureReason,
+      });
+      failureReasons.set(failureReason, (failureReasons.get(failureReason) ?? 0) + 1);
+    }
   }
 
   if (shouldStoreMetadata) {
-    writeSyncLog("info", "[product-debug] scryfall metadata stage start", {
-      variantUpdates: variantMetafieldUpdates.size,
-      productUpdates: productMetafieldUpdates.size,
-    });
     metafieldUpdates.push(
       ...variantMetafieldUpdates.values(),
       ...productMetafieldUpdates.values(),
     );
+    if (dryRun) {
+      result.metafieldsUpdated = metafieldUpdates.length;
+    } else {
+    writeSyncLog("info", "[product-debug] scryfall metadata stage start", {
+      variantUpdates: variantMetafieldUpdates.size,
+      productUpdates: productMetafieldUpdates.size,
+    });
     const metadataStageTimeoutMs = getDynamicOperationTimeoutMs(metafieldUpdates.length);
     try {
       result.metafieldsUpdated = await withTimeout(
@@ -4615,6 +4645,7 @@ export async function syncCatalogWithScryfall(params: {
       timeoutMs: metadataStageTimeoutMs,
       stored: result.metafieldsUpdated,
     });
+    }
     if (onProgress) {
       await onProgress({
         phase: "updating_images",
@@ -4631,6 +4662,10 @@ export async function syncCatalogWithScryfall(params: {
   }
 
   if (shouldSyncImages) {
+    if (dryRun) {
+      // Preview mode: count images that would be synced without writing.
+      result.imagesUpdated = productImageUpdates.size;
+    } else {
     writeSyncLog("info", "[product-debug] image stage deferred until after price+metadata", {
       productsToSync: productImageUpdates.size,
       pricesUpdatedAlreadyApplied: result.pricesUpdated,
@@ -4709,6 +4744,7 @@ export async function syncCatalogWithScryfall(params: {
         reason: failureReason,
       });
       failureReasons.set(failureReason, (failureReasons.get(failureReason) ?? 0) + 1);
+    }
     }
   }
   if (onProgress) {

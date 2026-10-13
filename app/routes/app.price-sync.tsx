@@ -85,6 +85,7 @@ type ActionData =
         selectedProductIds: string[];
       };
     }
+  | { ok: true; type: "runPreviewQueued"; message: string }
   | {
       ok: true;
       type: "checkCustomScryfallQueued";
@@ -742,6 +743,25 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       } satisfies ActionData;
     }
 
+    if (intent === "runPreview") {
+      await getOrCreateSyncConfiguration(shop);
+      const enqueueResult = await enqueueManualSyncForShop(shop, {
+        selectedProductIds: undefined,
+        maxProducts: undefined,
+        kind: "test",
+        dryRun: true,
+      });
+      if (!enqueueResult.queued) {
+        return { ok: false, message: t.syncAlreadyRunning } satisfies ActionData;
+      }
+
+      return {
+        ok: true,
+        type: "runPreviewQueued",
+        message: t.previewSyncQueued,
+      } satisfies ActionData;
+    }
+
     if (intent === "runTest") {
       await getOrCreateSyncConfiguration(shop);
       const selectedProductIds = String(formData.get("selectedProductIds") ?? "")
@@ -1007,6 +1027,8 @@ export default function PriceSyncPage() {
     isSubmittingCustomScryfallCheck || isScryfallCheckActive;
   const isRunningSync =
     navigation.state !== "idle" && navigation.formData?.get("intent") === "run";
+  const isPreviewSync =
+    navigation.state !== "idle" && navigation.formData?.get("intent") === "runPreview";
   const isTestingSync =
     navigation.state !== "idle" && navigation.formData?.get("intent") === "runTest";
   const optimisticSyncStatus =
@@ -1019,9 +1041,11 @@ export default function PriceSyncPage() {
   const optimisticTestStatus =
     isTestingSync
       ? "running"
-      : actionData?.ok && actionData.type === "runTestQueued"
-        ? "queued"
-        : null;
+      : isPreviewSync
+        ? "running"
+        : actionData?.ok && (actionData.type === "runTestQueued" || actionData.type === "runPreviewQueued")
+          ? "queued"
+          : null;
   const currentTestStatus = testStatus?.status ?? optimisticTestStatus;
   const isTestSyncActive =
     currentTestStatus === "queued" || currentTestStatus === "running";
@@ -1953,6 +1977,20 @@ export default function PriceSyncPage() {
               <Button variant="secondary" onClick={() => setIsRunScopeModalOpen(true)}>
                 {t.runScopeOpen}
               </Button>
+              <Form method="post">
+                <input type="hidden" name="intent" value="runPreview" />
+                <Button submit variant="primary" loading={isPreviewSync}>
+                  {t.previewRunButton}
+                </Button>
+              </Form>
+              <Text as="p" tone="subdued" variant="bodySm">
+                {t.previewRunHint}
+              </Text>
+              {actionData?.ok && actionData.type === "runPreviewQueued" ? (
+                <Banner tone="info" title={t.previewRunButton}>
+                  <p>{t.previewSyncQueued}</p>
+                </Banner>
+              ) : null}
               {showTestStatusCard && (
                 <Box paddingBlockStart="300">
                   <Banner

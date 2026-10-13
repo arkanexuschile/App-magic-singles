@@ -244,7 +244,7 @@ export const i18n = {
     syncHistoryCsvItemStatus: "Status",
     syncHistoryCsvItemReason: "Reason",
     downloadSyncHistoryExcelButton: "Download Excel",
-    downloadTestExcelButton: "Download test Excel",
+    downloadTestExcelButton: "Download last result Excel",
     xlsxDownloadError: "Could not download history Excel",
     xlsxSheetName: "Result",
     xlsxMetaShop: "Shop",
@@ -265,6 +265,11 @@ export const i18n = {
     xlsxColVariation: "Change %",
     xlsxColStatus: "Status",
     xlsxColReason: "Reason",
+    previewRunButton: "Full preview (no changes)",
+    previewRunHint:
+      "Resolves every singles product and shows what would change. Applies nothing.",
+    previewSyncQueued:
+      "Full preview queued. It runs in the background; when it finishes, download the Excel to review what would change.",
     syncHistoryItemStatusUpdated: "Updated",
     syncHistoryItemStatusFailed: "Failed",
     syncHistoryItemStatusUnchanged: "Unchanged",
@@ -513,7 +518,7 @@ export const i18n = {
     syncHistoryCsvItemStatus: "Status",
     syncHistoryCsvItemReason: "Motivo",
     downloadSyncHistoryExcelButton: "Descargar Excel",
-    downloadTestExcelButton: "Descargar Excel de la prueba",
+    downloadTestExcelButton: "Descargar Excel del último resultado",
     xlsxDownloadError: "No se pudo descargar el Excel del historial",
     xlsxSheetName: "Resultado",
     xlsxMetaShop: "Tienda",
@@ -534,6 +539,11 @@ export const i18n = {
     xlsxColVariation: "Variación %",
     xlsxColStatus: "Estado",
     xlsxColReason: "Motivo",
+    previewRunButton: "Vista previa completa (sin cambios)",
+    previewRunHint:
+      "Resuelve todos los productos singles y muestra qué cambiaría. No aplica nada.",
+    previewSyncQueued:
+      "Vista previa completa en cola. Corre en segundo plano; al terminar, descarga el Excel para revisar qué cambiaría.",
     syncHistoryItemStatusUpdated: "Actualizado",
     syncHistoryItemStatusFailed: "Fallo",
     syncHistoryItemStatusUnchanged: "Sin cambios",
