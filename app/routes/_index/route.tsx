@@ -22,10 +22,11 @@ export default function App() {
   return (
     <div className={styles.index}>
       <div className={styles.content}>
-        <h1 className={styles.heading}>Shopify Price Sync</h1>
-        <p className={styles.text}>
-          Sync product variant prices from an external pricing API, matched by SKU.
-        </p>
+            <h1 className={styles.heading}>Singles Price Sync</h1>
+            <p className={styles.text}>
+              Keep your Magic: The Gathering singles priced automatically from
+              a trusted pricing source, matched by SKU.
+            </p>
         {showForm && (
           <Form className={styles.form} method="post" action="/auth/login">
             <label className={styles.label}>
