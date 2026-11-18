@@ -44,8 +44,11 @@ contacto@arkanexus.cl
 
 ## 3) Pricing (must match the code)
 
-- Recurring charge: **USD 19.99 every 30 days**
-- Free trial: **7 days**
+- Monthly: **USD 19.00 every 30 days**, 7-day free trial
+- Annual: **USD 220.00 every 12 months**, 7-day free trial
+- Both plans are selectable inside the app (Subscription page) and merchants can
+  switch between them at any time; Shopify prorates the unused time and records
+  the charge in the merchant's billing history.
 
 ## 4) Reviewer Notes (copy/paste)
 
@@ -60,8 +63,11 @@ Test flow:
 4. Verify the products/variants created in Shopify (title, price, SKU, metafields, image).
 5. Optionally go to "Import by Excel": download the catalog, mark the INCLUIR column
    on a few rows, add a quantity, and upload it back to create only those cards.
-6. Billing: open "Subscription" and subscribe. The app runs in test mode during review,
-   so no real charge is made. A 7-day free trial applies.
+6. Billing: open "Subscription". Both plans are listed (monthly USD 19 / 30 days
+   and annual USD 220 / 12 months). Pick one and subscribe, then switch to the
+   other plan with "Switch to this plan" to confirm upgrade/downgrade works and
+   the charge appears under Settings > Billing. The app runs in test mode during
+   review, so no real charge is made. A 7-day free trial applies.
 
 What the app does:
 - Reads public card data from Scryfall and reference prices from Card Kingdom.

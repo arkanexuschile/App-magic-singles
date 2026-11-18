@@ -12,10 +12,50 @@ import { ensureProductMetafieldDefinitions } from "./services/metafield-definiti
 import { createShopAdminClient } from "./services/shopify/admin-client.server";
 
 export const MONTHLY_PLAN = "Monthly subscription";
+export const ANNUAL_PLAN = "Annual subscription";
+
+export const BILLING_TRIAL_DAYS = 7;
 
 function billingPlanAmount(): number {
-  const raw = Number(process.env.BILLING_PLAN_PRICE ?? "19.99");
-  return Number.isFinite(raw) && raw > 0 ? raw : 19.99;
+  const raw = Number(process.env.BILLING_PLAN_PRICE ?? "19");
+  return Number.isFinite(raw) && raw > 0 ? raw : 19;
+}
+
+function billingAnnualAmount(): number {
+  const raw = Number(process.env.BILLING_ANNUAL_PRICE ?? "220");
+  return Number.isFinite(raw) && raw > 0 ? raw : 220;
+}
+
+export type BillingPlanInfo = {
+  key: string;
+  amount: number;
+  currencyCode: string;
+  interval: "every_30_days" | "annual";
+  trialDays: number;
+};
+
+/**
+ * Plans offered to merchants. Keep these aligned with the prices advertised on
+ * the App Store listing.
+ */
+export function getBillingPlans(): BillingPlanInfo[] {
+  const currencyCode = billingCurrency();
+  return [
+    {
+      key: MONTHLY_PLAN,
+      amount: billingPlanAmount(),
+      currencyCode,
+      interval: "every_30_days",
+      trialDays: BILLING_TRIAL_DAYS,
+    },
+    {
+      key: ANNUAL_PLAN,
+      amount: billingAnnualAmount(),
+      currencyCode,
+      interval: "annual",
+      trialDays: BILLING_TRIAL_DAYS,
+    },
+  ];
 }
 
 function billingCurrency(): string {
@@ -50,12 +90,22 @@ const shopify = shopifyApp({
   distribution: AppDistribution.AppStore,
   billing: {
     [MONTHLY_PLAN]: {
-      trialDays: 7,
+      trialDays: BILLING_TRIAL_DAYS,
       lineItems: [
         {
           amount: billingPlanAmount(),
           currencyCode: billingCurrency(),
           interval: BillingInterval.Every30Days,
+        },
+      ],
+    },
+    [ANNUAL_PLAN]: {
+      trialDays: BILLING_TRIAL_DAYS,
+      lineItems: [
+        {
+          amount: billingAnnualAmount(),
+          currencyCode: billingCurrency(),
+          interval: BillingInterval.Annual,
         },
       ],
     },
