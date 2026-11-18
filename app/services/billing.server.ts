@@ -1,4 +1,5 @@
 import { redirect } from "@remix-run/node";
+import { BillingReplacementBehavior } from "@shopify/shopify-app-remix/server";
 import {
   authenticate,
   ANNUAL_PLAN,
@@ -12,27 +13,54 @@ import type { BillingPlanInfo } from "../shopify.server";
 export { MONTHLY_PLAN, ANNUAL_PLAN, getBillingPlans };
 export type { BillingPlanInfo };
 
-export const ACTIVE_PLANS: Array<typeof MONTHLY_PLAN | typeof ANNUAL_PLAN> = [
-  MONTHLY_PLAN,
-  ANNUAL_PLAN,
-];
+export type BillingPlanKey = typeof MONTHLY_PLAN | typeof ANNUAL_PLAN;
+
+export const ACTIVE_PLANS: BillingPlanKey[] = [MONTHLY_PLAN, ANNUAL_PLAN];
+
+/**
+ * The Remix billing helpers are generic over the app config, but the inferred
+ * type of `Config["billing"]` resolves to `never` for this configuration, so we
+ * describe the slice of the API we use instead.
+ */
+type BillingApi = {
+  require: (options: {
+    plans: BillingPlanKey[];
+    isTest?: boolean;
+    onFailure: () => Promise<Response>;
+  }) => Promise<unknown>;
+  check: (options: {
+    plans: BillingPlanKey[];
+    isTest?: boolean;
+  }) => Promise<{
+    hasActivePayment: boolean;
+    appSubscriptions?: Array<{ id: string; name?: string | null }>;
+  }>;
+  request: (options: {
+    plan: BillingPlanKey;
+    isTest?: boolean;
+    replacementBehavior?: BillingReplacementBehavior;
+  }) => Promise<never>;
+  cancel: (options: {
+    subscriptionId: string;
+    isTest?: boolean;
+    prorate?: boolean;
+  }) => Promise<unknown>;
+};
+
+function asBillingApi(billing: unknown): BillingApi {
+  return billing as unknown as BillingApi;
+}
 
 export type BillingStatus = {
   hasActivePayment: boolean;
-  activePlanKey: string | null;
+  activePlanKey: BillingPlanKey | null;
   activePlanName: string | null;
-  amount: number;
-  currencyCode: string;
-  interval: "every_30_days" | "annual" | null;
   isTestMode: boolean;
   subscriptionId: string | null;
   plans: BillingPlanInfo[];
 };
 
-function planKeyForName(name: string | null | undefined): string | null {
-  if (!name) {
-    return null;
-  }
+function planKeyForName(name: string | null | undefined): BillingPlanKey | null {
   if (name === MONTHLY_PLAN) {
     return MONTHLY_PLAN;
   }
@@ -40,6 +68,10 @@ function planKeyForName(name: string | null | undefined): string | null {
     return ANNUAL_PLAN;
   }
   return null;
+}
+
+export function isKnownPlan(plan: string | null | undefined): plan is BillingPlanKey {
+  return plan === MONTHLY_PLAN || plan === ANNUAL_PLAN;
 }
 
 /**
@@ -52,7 +84,7 @@ export async function requireActiveSubscription(request: Request): Promise<void>
     return;
   }
   const { billing } = await authenticate.admin(request);
-  await billing.require({
+  await asBillingApi(billing).require({
     plans: ACTIVE_PLANS,
     isTest: isBillingTestMode(),
     onFailure: async () => {
@@ -71,30 +103,49 @@ export async function requireActiveSubscription(request: Request): Promise<void>
  */
 export async function getBillingStatus(request: Request): Promise<BillingStatus> {
   const { billing } = await authenticate.admin(request);
-  const { hasActivePayment, appSubscriptions } = await billing.check({
+  const { hasActivePayment, appSubscriptions } = await asBillingApi(billing).check({
     plans: ACTIVE_PLANS,
     isTest: isBillingTestMode(),
   });
-  const plans = getBillingPlans();
   const subscription = appSubscriptions?.[0] ?? null;
-  const activePlanKey = planKeyForName(subscription?.name);
-  const activePlan = plans.find((plan) => plan.key === activePlanKey) ?? null;
 
   return {
     hasActivePayment,
-    activePlanKey,
+    activePlanKey: planKeyForName(subscription?.name),
     activePlanName: subscription?.name ?? null,
-    amount: activePlan?.amount ?? plans[0].amount,
-    currencyCode: activePlan?.currencyCode ?? plans[0].currencyCode,
-    interval: activePlan?.interval ?? null,
     isTestMode: isBillingTestMode(),
     subscriptionId: subscription?.id ?? null,
-    plans,
+    plans: getBillingPlans(),
   };
 }
 
-export function isKnownPlan(
-  plan: string | null | undefined,
-): plan is typeof MONTHLY_PLAN | typeof ANNUAL_PLAN {
-  return plan === MONTHLY_PLAN || plan === ANNUAL_PLAN;
+/**
+ * Requests a plan (or a plan change). When the merchant already has an active
+ * subscription, `replacementBehavior: STANDARD` makes Shopify prorate the
+ * unused time and create the new charge instead of requiring a cancel first.
+ */
+export async function requestPlan(request: Request, plan: BillingPlanKey): Promise<never> {
+  const { billing } = await authenticate.admin(request);
+  const status = await getBillingStatus(request);
+  return asBillingApi(billing).request({
+    plan,
+    isTest: isBillingTestMode(),
+    ...(status.hasActivePayment
+      ? { replacementBehavior: BillingReplacementBehavior.Standard }
+      : {}),
+  });
+}
+
+export async function cancelActiveSubscription(request: Request): Promise<boolean> {
+  const { billing } = await authenticate.admin(request);
+  const status = await getBillingStatus(request);
+  if (!status.subscriptionId) {
+    return false;
+  }
+  await asBillingApi(billing).cancel({
+    subscriptionId: status.subscriptionId,
+    isTest: isBillingTestMode(),
+    prorate: true,
+  });
+  return true;
 }

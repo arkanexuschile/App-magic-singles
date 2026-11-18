@@ -1,7 +1,6 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json, redirect } from "@remix-run/node";
 import { Form, useActionData, useLoaderData, useNavigation } from "@remix-run/react";
-import { BillingReplacementBehavior } from "@shopify/shopify-app-remix/server";
 import { TitleBar } from "@shopify/app-bridge-react";
 import {
   Badge,
@@ -14,9 +13,14 @@ import {
   Page,
   Text,
 } from "@shopify/polaris";
-import { authenticate, isBillingTestMode, isBillingEnabled } from "../shopify.server";
+import { authenticate, isBillingEnabled } from "../shopify.server";
 import type { BillingPlanInfo } from "../shopify.server";
-import { getBillingStatus, isKnownPlan } from "../services/billing.server";
+import {
+  cancelActiveSubscription,
+  getBillingStatus,
+  isKnownPlan,
+  requestPlan,
+} from "../services/billing.server";
 import { detectLanguage } from "../utils/i18n";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -30,7 +34,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const { billing } = await authenticate.admin(request);
+  await authenticate.admin(request);
   const formData = await request.formData();
   const intent = String(formData.get("intent") || "");
   const requestedPlan = String(formData.get("plan") || "");
@@ -39,31 +43,19 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     if (!isKnownPlan(requestedPlan)) {
       return json({ ok: false, error: "Plan inválido" }, { status: 400 });
     }
-    const status = await getBillingStatus(request);
     // Replacing an existing subscription requires a replacement behavior so
     // Shopify prorates the unused time and records the new charge instead of
     // asking the merchant to cancel first.
-    await billing.request({
-      plan: requestedPlan,
-      isTest: isBillingTestMode(),
-      ...(status.hasActivePayment
-        ? { replacementBehavior: BillingReplacementBehavior.Standard }
-        : {}),
-    });
+    await requestPlan(request, requestedPlan);
     return json({ ok: true });
   }
 
   if (intent === "cancel") {
-    const status = await getBillingStatus(request);
-    if (status.subscriptionId) {
-      await billing.cancel({
-        subscriptionId: status.subscriptionId,
-        isTest: isBillingTestMode(),
-        prorate: true,
-      });
-      return json({ ok: true, cancelled: true });
+    const cancelled = await cancelActiveSubscription(request);
+    if (!cancelled) {
+      return json({ ok: false, error: "No active subscription" }, { status: 400 });
     }
-    return json({ ok: false, error: "No active subscription" }, { status: 400 });
+    return json({ ok: true, cancelled: true });
   }
 
   return json({ ok: false, error: "Unknown intent" }, { status: 400 });
