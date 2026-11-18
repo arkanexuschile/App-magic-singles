@@ -18,7 +18,9 @@ export default function TermsPage() {
 
       <h2>Subscription and Billing</h2>
       <ul>
-        <li>The app is billed through Shopify as a recurring charge of USD 19.99 every 30 days.</li>
+        <li>The app is billed through Shopify as a recurring charge of USD 19.00 every 30 days
+          (monthly plan) or USD 220.00 every 12 months (annual plan). You can switch between
+          plans at any time from the app; Shopify prorates the unused time.</li>
         <li>A 7-day free trial applies. You can cancel at any time from the app or from Shopify.</li>
         <li>Charges are handled by Shopify; the app does not process payment data.</li>
       </ul>
@@ -57,7 +59,9 @@ export default function TermsPage() {
       </p>
       <h3>Suscripción y cobro</h3>
       <ul>
-        <li>La app se cobra a través de Shopify como cargo recurrente de USD 19.99 cada 30 días.</li>
+        <li>La app se cobra a través de Shopify como cargo recurrente de USD 19.00 cada 30 días
+          (plan mensual) o USD 220.00 cada 12 meses (plan anual). Puedes cambiar de plan cuando
+          quieras desde la app; Shopify prorratea el tiempo no usado.</li>
         <li>Incluye 7 días de prueba gratis. Puedes cancelar cuando quieras.</li>
         <li>Los cobros los gestiona Shopify; la app no procesa datos de pago.</li>
       </ul>

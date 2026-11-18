@@ -87,7 +87,8 @@ Data and compliance:
    - Scopes: `read_products,write_products,write_inventory`
    - Privacy / Terms / Support URLs (above)
    - Distribution: Public
-3. Listing: name, tagline, description (ES/EN), category, pricing (19.99 / 30d + 7-day trial),
+3. Listing: name, tagline, description (ES/EN), category, pricing (USD 19 / 30d and
+   USD 220 / 12 months, 7-day trial on both),
    screenshots, optional demo video, support email.
 4. Provide a development/test store with the app installed.
 5. Confirm API health shows no breaking changes.
